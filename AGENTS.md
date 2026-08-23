@@ -95,6 +95,45 @@ Ao criar ou atualizar arquivos Markdown, acompanhe o padrão observado no `delta
 - Restrinja alterações aos arquivos e ao repositório definidos pela tarefa.
 - Antes de implementar a futura movimentação de dados, valide os contratos oficiais de origem e destino, as regras de integridade e o comportamento esperado diante de falhas.
 
-## 7. Aviso de manutenção
+## 7. Limite de complexidade e nível técnico
 
-A seção **Estrutura atual** será revisada e atualizada periodicamente nesta conversa após commits oficiais que alterem a organização do repositório. Antes de confiar nela, compare-a com os arquivos presentes na branch em uso e preserve somente informações verificáveis.
+As soluções devem ser compatíveis com o conhecimento de estudantes do Ensino Médio Técnico em Análise e Desenvolvimento de Sistemas.
+
+- Priorize código simples, legível e dividido em pequenas responsabilidades.
+- Utilize primeiro os recursos já presentes no repositório e conhecidos pela equipe.
+- Não adicione frameworks, bibliotecas, padrões arquiteturais ou infraestrutura sem necessidade comprovada.
+- Evite abstrações prematuras, metaprogramação, arquiteturas distribuídas e padrões avançados quando uma solução direta atender ao requisito.
+- Não reestruture grandes partes do projeto para resolver uma tarefa localizada.
+- Explique decisões técnicas e trechos não óbvios com linguagem didática.
+- Quando a solução exigir conhecimento acima do limite registrado abaixo, apresente primeiro uma alternativa mais simples e solicite aprovação antes de prosseguir.
+- Não implemente automaticamente uma solução avançada sem justificativa e autorização explícita.
+
+### Stack e nível de aprofundamento da equipe
+
+| Tecnologia ou assunto | Nível atual | Limite esperado |
+| --- | --- | --- |
+| Lógica de programação | Intermediário | Avançado |
+| Git e GitHub | Intermediário | Avançado |
+| HTML e CSS | Básico | Intermediário |
+| JavaScript | Básico | Intermediário |
+| Java | Intermediário | Avançado |
+| Spring Boot | Básico | Avançado |
+| Python | Intermediário | Avançado |
+| FastAPI | Básico | Intermediário |
+| SQL e PostgreSQL | Avançado | Avançado |
+| MongoDB | Básico | Intermediário |
+| APIs REST | Intermediário | Intermediário |
+| Testes automatizados | Básico | Intermediário |
+| Docker e CI/CD | Básico | Intermediário |
+| Arquitetura e padrões de projeto | Básico | Intermediário |
+| IoT e comunicação com hardware | Básico | Básico |
+
+O **nível atual** representa o conhecimento que a equipe já possui e consegue aplicar com alguma autonomia. O **limite esperado** representa o nível máximo de complexidade que a IA pode utilizar.
+
+Quando o limite esperado for superior ao nível atual, a IA deve explicar os novos conceitos de forma simples e didática, relacionando-os ao código produzido. Qualquer solução que ultrapasse o limite esperado exige aprovação explícita antes da implementação.
+
+## 8. Aviso de manutenção
+
+A seção **Estrutura atual do repositório** deve ser revisada periodicamente nesta conversa e atualizada depois
+de commits oficiais que adicionem, removam ou reorganizem arquivos. Antes de cada atualização, compare esta
+descrição com a árvore real da `main`; o conteúdo deste arquivo não substitui a inspeção do estado atual.
