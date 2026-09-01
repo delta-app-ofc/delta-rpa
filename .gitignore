@@ -37,4 +37,10 @@ build/
 .env
 
 ### TASK.md ###
-TASK.md
+TASK.md.env
+
+venv/
+
+__pycache__/
+
+logs/*.log

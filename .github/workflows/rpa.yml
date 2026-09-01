@@ -1,0 +1,40 @@
+name: RPA
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  rpa:
+    runs-on: ubuntu-latest
+
+    env:
+      FIRST_YEAR_DB_HOST: ${{ secrets.FIRST_YEAR_DB_HOST }}
+      FIRST_YEAR_DB_PORT: ${{ secrets.FIRST_YEAR_DB_PORT }}
+      FIRST_YEAR_DB_NAME: ${{ secrets.FIRST_YEAR_DB_NAME }}
+      FIRST_YEAR_DB_USER: ${{ secrets.FIRST_YEAR_DB_USER }}
+      FIRST_YEAR_DB_PASSWORD: ${{ secrets.FIRST_YEAR_DB_PASSWORD }}
+
+      SECOND_YEAR_DB_HOST: ${{ secrets.SECOND_YEAR_DB_HOST }}
+      SECOND_YEAR_DB_PORT: ${{ secrets.SECOND_YEAR_DB_PORT }}
+      SECOND_YEAR_DB_NAME: ${{ secrets.SECOND_YEAR_DB_NAME }}
+      SECOND_YEAR_DB_USER: ${{ secrets.SECOND_YEAR_DB_USER }}
+      SECOND_YEAR_DB_PASSWORD: ${{ secrets.SECOND_YEAR_DB_PASSWORD }}
+
+      BATCH_SIZE: 500
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Executar RPA
+        run: python app/main.py
