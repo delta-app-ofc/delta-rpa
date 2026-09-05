@@ -31,7 +31,7 @@ TRANSFORMATIONS = {
     },
 
     "tb_device": {
-        "uppercase": [
+        "to_string": [
             "device_id"
         ]
     }
@@ -55,6 +55,40 @@ def _transform_uppercase(
                 dataframe.at[index, column] = value.upper()
 
     return dataframe
+
+def _transform_to_string(
+    dataframe: pd.DataFrame,
+    columns: list[str]
+):
+    """
+    Converte colunas numéricas para texto.
+
+    Necessário para ``tb_device.device_id``: no banco legado a coluna é inteira,
+    mas no banco novo ela é ``VARCHAR(100)``. O ``int`` intermediário evita que um
+    valor como ``123`` vire ``"123.0"``.
+    """
+    dataframe = dataframe.copy()
+
+    def _to_string(value):
+        if pd.isna(value):
+            return value
+
+        if isinstance(value, float) and value.is_integer():
+            value = int(value)
+
+        return str(value)
+
+    for column in columns:
+
+        if column not in dataframe.columns:
+            continue
+
+        # Substitui a coluna inteira para não misturar tipos (int e texto) na
+        # mesma coluna.
+        dataframe[column] = dataframe[column].map(_to_string).astype("object")
+
+    return dataframe
+
 
 def _transform_replace(
     dataframe: pd.DataFrame,
@@ -88,6 +122,11 @@ def _transform_table(
     transformed = _transform_uppercase(
         transformed,
         rules.get("uppercase", [])
+    )
+
+    transformed = _transform_to_string(
+        transformed,
+        rules.get("to_string", [])
     )
 
     transformed = _transform_replace(

@@ -36,6 +36,9 @@ build/
 ### ENV ###
 .env
 
+### Estado local do RPA (mapa de ids entre execuções) ###
+state/
+
 ### TASK.md ###
 TASK.md.env
 

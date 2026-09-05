@@ -31,7 +31,14 @@ O processo é executado de ponta a ponta pelo script `app/main.py`, que orquestr
    - Conversão de colunas para maiúsculas (ex.: `name`, `email`, `city`, `state`);
    - Substituição de valores (ex.: `APARTAMENTO` → `PRÉDIO` em `tb_property.type`).
 4. **Carga** (`app/modules/load.py`)
-   Insere os dados transformados no banco novo, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`), remapeando chaves estrangeiras (IDs antigos → novos) e utilizando `INSERT ... ON CONFLICT DO UPDATE` para tabelas com restrições de unicidade. Toda a carga ocorre dentro de uma única transação: em caso de falha, é feito **rollback** completo; em caso de sucesso, **commit**.
+   Sincroniza o banco novo com o legado, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`) e remapeando chaves estrangeiras (IDs antigos → novos):
+   - **Mapa de ids persistido**: `state/id_map.json` guarda, entre execuções, a relação `id_legado → id_novo` de cada tabela (`app/modules/state.py`).
+   - **Inserção x atualização (upsert real)**: registro do legado que ainda não está no mapa de ids é **inserido**; registro que já está é **atualizado** em todas as colunas, pelo `id` do banco novo. Tabelas com chave natural usam `INSERT ... ON CONFLICT DO UPDATE` como rede de segurança contra duplicatas.
+   - **Replicação de exclusão**: todo id que estava no mapa de ids e não veio mais na extração foi apagado no legado e é apagado no banco novo, na ordem inversa de `LOAD_PRIORITY`. O RPA nunca apaga nada no banco legado.
+   - Toda a carga (exclusões + inserções + atualizações) ocorre em uma única transação: em caso de falha, **rollback** completo e o mapa de ids não é regravado; em caso de sucesso, **commit** e o mapa de ids é atualizado.
+5. **Registro e notificação**
+   - Cada execução grava uma linha na tabela `tb_log_rpa` do banco novo (`app/modules/execution_log.py`): início, fim, status, quantidade de registros inseridos/atualizados/excluídos e de erros de validação, e a mensagem de erro quando houver.
+   - Ao final de toda execução (sucesso ou erro) é enviado um e-mail de resumo (`app/modules/notification.py`), usando `smtplib`/`email` da biblioteca padrão. Se as variáveis `SMTP_*` não estiverem preenchidas, o envio é apenas registrado no log.
 Cada etapa gera logs estruturados (`app/modules/logs.py`), tanto em console quanto em arquivo (`logs/rpa_AAAA-MM-DD.log`).
  
 ## Estrutura do projeto
@@ -46,14 +53,20 @@ delta-rpa/
 │       ├── extraction.py        # Extração dos dados do banco legado
 │       ├── validation.py        # Regras de validação e integridade
 │       ├── transformation.py    # Regras de transformação/normalização
-│       ├── load.py               # Carga no banco novo com controle transacional
-│       └── logs.py               # Configuração e helpers de logging
+│       ├── load.py              # Carga no banco novo (upsert + exclusão + transação)
+│       ├── state.py             # Mapa de ids persistido entre execuções
+│       ├── execution_log.py     # Registro de cada execução em tb_log_rpa
+│       ├── notification.py      # E-mail de resumo ao final da execução
+│       └── logs.py              # Configuração e helpers de logging
 ├── tests/
 │   ├── test_validation.py
-│   └── test_transformation.py
+│   ├── test_transformation.py
+│   ├── test_load.py
+│   └── test_state.py
 ├── test/
 │   ├── init-legacy/             # Scripts SQL para popular o banco legado (testes)
 │   └── init-new/                # Scripts SQL para popular o banco novo (testes)
+├── state/                       # Mapa de ids (state/id_map.json) — estado local, não versionado
 ├── logs/                        # Logs gerados em tempo de execução
 ├── Dockerfile
 ├── docker-compose.test.yml      # Sobe bancos de teste + executa o RPA
@@ -92,6 +105,12 @@ Variáveis disponíveis:
 | `SECOND_YEAR_DB_USER` | Usuário do banco novo |
 | `SECOND_YEAR_DB_PASSWORD` | Senha do banco novo |
 | `BATCH_SIZE` | Tamanho de lote utilizado pelo RPA |
+| `SMTP_HOST` | Host do servidor SMTP (vazio desativa o e-mail) |
+| `SMTP_PORT` | Porta do servidor SMTP (padrão `587`) |
+| `SMTP_USER` | Usuário para autenticação SMTP (opcional) |
+| `SMTP_PASSWORD` | Senha para autenticação SMTP (opcional) |
+| `EMAIL_FROM` | Remetente do e-mail de resumo |
+| `EMAIL_TO` | Destinatário do e-mail de resumo |
  
 ## Como executar
  
@@ -143,4 +162,8 @@ Isso sobe:
 - `rpa`: executa o pipeline completo contra os dois bancos acima, usando as variáveis definidas em `.env.test`.
 ## Logs
  
-Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, contendo as informações de cada etapa do pipeline (extração, validação, transformação, carga) e o resultado final (commit ou rollback).
+Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, contendo as informações de cada etapa do pipeline (extração, validação, transformação, carga, exclusão) e o resultado final (commit ou rollback).
+
+Além do log em arquivo, cada execução grava uma linha na tabela `tb_log_rpa` do banco novo, com início, fim, status (`SUCCESS`/`ERROR`), quantidade de registros inseridos, atualizados e excluídos, quantidade de erros de validação e a mensagem de erro quando houver. O script de criação dessa tabela está em `test/init-new/01-schema.sql`.
+
+O mapa de ids usado entre execuções fica em `state/id_map.json` (estado local, não versionado).

@@ -43,4 +43,5 @@ services:
         condition: service_healthy
     volumes:
       - ./logs:/app/logs
+      - ./state:/app/state
     command: ["python", "/app/app/main.py"]

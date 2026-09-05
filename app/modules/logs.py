@@ -125,6 +125,19 @@ def log_load(
     )
 
 
+def log_delete(
+    logger,
+    table: str,
+    quantity: int
+):
+    logger.info(
+        (
+            f"Exclusão | tabela={table} | "
+            f"registros={quantity}"
+        )
+    )
+
+
 def log_commit(logger):
     logger.info(
         "Transação confirmada com COMMIT."
