@@ -1,17 +1,3 @@
-"""
-Registro de cada execução do RPA na tabela ``tb_log_rpa`` do banco novo.
-
-A cada execução é gravada uma linha com o horário de início (``start_execution_log``)
-e, ao final, a mesma linha é atualizada com o horário de término, o status
-(``SUCCESS`` ou ``ERROR``), a quantidade de registros inseridos, atualizados e
-excluídos, a quantidade de erros de validação e a mensagem de erro, quando houver
-(``finish_execution_log``).
-
-Este log é gravado em uma transação própria, separada da transação da carga. Se a
-carga falhar e sofrer rollback, a linha de log continua registrada com o status
-``ERROR``.
-"""
-
 from sqlalchemy import text
 
 from database.connections import create_second_year_connection

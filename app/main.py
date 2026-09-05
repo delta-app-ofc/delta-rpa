@@ -5,7 +5,6 @@ from modules.validation import validate_data
 from modules.transformation import transform_data
 from modules.load import load_data
 from modules.execution_log import start_execution_log, finish_execution_log
-from modules.notification import send_execution_report
 from modules.logs import (
     get_logger,
     log_start,
@@ -201,8 +200,6 @@ def main():
                 "Falha ao gravar o fim da execução em tb_log_rpa",
                 exception
             )
-
-        send_execution_report(summary)
 
 
 if __name__ == "__main__":

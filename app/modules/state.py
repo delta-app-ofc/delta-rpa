@@ -1,21 +1,3 @@
-"""
-Persistência do mapa de ids entre execuções do RPA.
-
-O mapa de ids relaciona o id de cada registro no banco legado com o id que ele
-recebeu no banco novo, no formato:
-
-    {
-        "tb_user": { 1: 10, 2: 11 },
-        "tb_address": { 1: 5 },
-        ...
-    }
-
-Ele é gravado em ``state/id_map.json`` ao final de cada carga bem-sucedida e lido
-no início da execução seguinte. É a partir desse arquivo que o RPA sabe quais
-registros do legado já foram migrados (para decidir entre inserir e atualizar) e
-quais foram apagados no legado (para replicar a exclusão no banco novo).
-"""
-
 import json
 import os
 
