@@ -50,12 +50,24 @@ UNIQUE_COLUMNS = {
         ["email"]
     ],
 
+    "tb_address": [
+        ["cep"]
+    ],
+
+    "tb_property": [
+        ["name", "address_id"]
+    ],
+
     "tb_user_property": [
         ["user_id", "property_id"]
     ],
 
     "tb_device": [
         ["device_id"]
+    ],
+
+    "tb_region_rate": [
+        ["region_id", "initial_validity"]
     ],
 
     "tb_user_habit": [

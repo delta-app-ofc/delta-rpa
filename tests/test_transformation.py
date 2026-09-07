@@ -34,7 +34,7 @@ def test_replaces_apartment_with_building_and_keeps_house():
 def test_table_without_rules_remains_unchanged():
     dataframes = {
         "tb_region_rate": pd.DataFrame([
-            {"id": 1, "region_id": 1, "rate": 12.5},
+            {"id": 1, "region_id": 1, "m3_value": 12.5, "initial_validity": "2026-01-01"},
         ])
     }
 
@@ -44,3 +44,17 @@ def test_table_without_rules_remains_unchanged():
         result["tb_region_rate"],
         dataframes["tb_region_rate"]
     )
+
+
+def test_device_id_is_converted_to_string():
+    dataframes = {
+        "tb_device": pd.DataFrame([
+            {"id": 1, "device_id": 1001, "property_id": 2},
+        ])
+    }
+
+    result = transform_data(dataframes)
+
+    value = result["tb_device"].iloc[0]["device_id"]
+    assert value == "1001"
+    assert isinstance(value, str)

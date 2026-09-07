@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS tb_log_rpa           CASCADE;
 DROP TABLE IF EXISTS tb_last_water_bill   CASCADE;
 DROP TABLE IF EXISTS tb_region_rate       CASCADE;
 DROP TABLE IF EXISTS tb_user_habit_day    CASCADE;
@@ -37,6 +38,7 @@ CREATE TABLE tb_address (
       CONSTRAINT chk_tb_address_cep CHECK      (cep ~ '^[0-9]{8}$')
     , city                          VARCHAR(60) NOT NULL
     , state                         VARCHAR(30) NOT NULL
+    , CONSTRAINT uq_tb_address_cep              UNIQUE (cep)
     , CONSTRAINT fk_tb_address_region           FOREIGN KEY (region_id)
         REFERENCES tb_region (id)
         ON DELETE RESTRICT
@@ -50,7 +52,7 @@ CREATE TABLE tb_user (
     , password              VARCHAR(255) NOT NULL
     , phone                 VARCHAR(15)
     , birth_date            DATE         NOT NULL
-      CONSTRAINT chk_tb_user_birth_date CHECK (birth_date <= CURRENT_DATE)
+      CONSTRAINT chk_tb_user_birth_date CHECK (birth_date <= CURRENT_DATE - INTERVAL '18 years')
     , registration_date     DATE         NOT NULL DEFAULT CURRENT_DATE
     , is_active             BOOLEAN      NOT NULL DEFAULT TRUE
     , is_admin              BOOLEAN      NOT NULL DEFAULT FALSE
@@ -66,6 +68,7 @@ CREATE TABLE tb_property (
       CONSTRAINT chk_tb_property_classification CHECK (classification IN ('RESIDENCIAL', 'COMERCIAL'))
     , address_id            INTEGER             NOT NULL
     , registration_date     DATE                NOT NULL DEFAULT CURRENT_DATE
+    , CONSTRAINT uq_tb_property_name_address    UNIQUE (name, address_id)
     , CONSTRAINT fk_tb_property_address         FOREIGN KEY (address_id)
         REFERENCES tb_address (id)
         ON DELETE RESTRICT
@@ -89,8 +92,8 @@ CREATE TABLE tb_user_property (
 );
 
 CREATE TABLE tb_device (
-      id                    SERIAL      PRIMARY KEY
-    , device_id             INTEGER     NOT NULL UNIQUE
+      id                    SERIAL       PRIMARY KEY
+    , device_id             VARCHAR(100) NOT NULL UNIQUE
     , property_id           INTEGER     NOT NULL
     , is_active             BOOLEAN     NOT NULL DEFAULT TRUE
     , installation_date     DATE        NOT NULL DEFAULT CURRENT_DATE
@@ -114,6 +117,9 @@ CREATE TABLE tb_region_rate (
     , final_validity                              DATE
       CONSTRAINT chk_tb_region_rate_final_validity
         CHECK (final_validity IS NULL OR final_validity >= initial_validity)
+
+    , CONSTRAINT uq_tb_region_rate_region_validity
+        UNIQUE (region_id, initial_validity)
 
     , CONSTRAINT fk_tb_region_rate_region
         FOREIGN KEY (region_id)
@@ -186,4 +192,32 @@ CREATE TABLE tb_last_water_bill (
         REFERENCES tb_user (id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
+);
+
+-- Log de execuções do RPA.
+-- Uma linha por execução: nasce com status 'RUNNING' e é atualizada no fim.
+CREATE TABLE tb_log_rpa (
+
+      id                       SERIAL      PRIMARY KEY
+
+    , started_at               TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP
+    , finished_at              TIMESTAMP
+
+    , status                   VARCHAR(10) NOT NULL DEFAULT 'RUNNING'
+      CONSTRAINT chk_tb_log_rpa_status
+          CHECK (status IN ('RUNNING', 'SUCCESS', 'ERROR'))
+
+    , inserted_count           INTEGER     NOT NULL DEFAULT 0
+      CONSTRAINT chk_tb_log_rpa_inserted_count          CHECK (inserted_count >= 0)
+
+    , updated_count            INTEGER     NOT NULL DEFAULT 0
+      CONSTRAINT chk_tb_log_rpa_updated_count           CHECK (updated_count >= 0)
+
+    , deleted_count            INTEGER     NOT NULL DEFAULT 0
+      CONSTRAINT chk_tb_log_rpa_deleted_count           CHECK (deleted_count >= 0)
+
+    , validation_error_count   INTEGER     NOT NULL DEFAULT 0
+      CONSTRAINT chk_tb_log_rpa_validation_error_count  CHECK (validation_error_count >= 0)
+
+    , error_message            TEXT
 );
