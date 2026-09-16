@@ -23,9 +23,7 @@ INSERT INTO tb_habit (id, name, description) VALUES
     (5, 'LAVAR CARRO', 'Lavagem de veículos'),
     (6, 'LAVAR LOUÇA', 'Lavagem de louças');
 
--- Mesma convenção de ids fixos usada acima (tb_region, tb_day_of_week,
--- tb_habit): a modules/transformation.py mapeia a classificação do banco
--- legado (texto) direto pro id aqui embaixo.
+
 INSERT INTO tb_property_classification (id, name, group_name) VALUES
     (1, 'RESIDENCIAL_NORMAL', 'RESIDENCIAL'),
     (2, 'RESIDENCIAL_SOCIAL', 'RESIDENCIAL'),
