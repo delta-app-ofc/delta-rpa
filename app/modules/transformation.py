@@ -28,11 +28,6 @@ TRANSFORMATIONS = {
                 "APARTAMENTO": "PRÉDIO"
             },
 
-            # O banco legado só distingue RESIDENCIAL/COMERCIAL; o banco novo
-            # guarda a classificação em tb_property_classification (8 linhas,
-            # ids fixos — ver test/init-new/02-seed.sql). Sem equivalente mais
-            # específico no legado, cada uma cai no subtipo "normal" da sua
-            # categoria.
             "classification": {
                 "RESIDENCIAL": 1,  # RESIDENCIAL_NORMAL
                 "COMERCIAL": 5     # COMERCIAL_NORMAL_INDUSTRIAL
