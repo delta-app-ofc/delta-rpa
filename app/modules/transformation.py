@@ -26,7 +26,21 @@ TRANSFORMATIONS = {
         "replace": {
             "type": {
                 "APARTAMENTO": "PRÉDIO"
+            },
+
+            # O banco legado só distingue RESIDENCIAL/COMERCIAL; o banco novo
+            # guarda a classificação em tb_property_classification (8 linhas,
+            # ids fixos — ver test/init-new/02-seed.sql). Sem equivalente mais
+            # específico no legado, cada uma cai no subtipo "normal" da sua
+            # categoria.
+            "classification": {
+                "RESIDENCIAL": 1,  # RESIDENCIAL_NORMAL
+                "COMERCIAL": 5     # COMERCIAL_NORMAL_INDUSTRIAL
             }
+        },
+
+        "rename": {
+            "classification": "classification_id"
         }
     },
 
@@ -108,6 +122,21 @@ def _transform_replace(
     return dataframe
 
 
+def _transform_rename(
+    dataframe: pd.DataFrame,
+    columns: dict
+):
+    dataframe = dataframe.copy()
+
+    existing = {
+        old_name: new_name
+        for old_name, new_name in columns.items()
+        if old_name in dataframe.columns
+    }
+
+    return dataframe.rename(columns=existing)
+
+
 def _transform_table(
     table: str,
     dataframe: pd.DataFrame
@@ -132,6 +161,11 @@ def _transform_table(
     transformed = _transform_replace(
         transformed,
         rules.get("replace", {})
+    )
+
+    transformed = _transform_rename(
+        transformed,
+        rules.get("rename", {})
     )
 
     return transformed

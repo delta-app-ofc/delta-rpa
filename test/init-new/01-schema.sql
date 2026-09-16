@@ -6,6 +6,7 @@ DROP TABLE IF EXISTS tb_user_habit        CASCADE;
 DROP TABLE IF EXISTS tb_device            CASCADE;
 DROP TABLE IF EXISTS tb_user_property     CASCADE;
 DROP TABLE IF EXISTS tb_property          CASCADE;
+DROP TABLE IF EXISTS tb_property_classification CASCADE;
 DROP TABLE IF EXISTS tb_address           CASCADE;
 DROP TABLE IF EXISTS tb_habit             CASCADE;
 DROP TABLE IF EXISTS tb_day_of_week       CASCADE;
@@ -59,16 +60,26 @@ CREATE TABLE tb_user (
     , is_manager            BOOLEAN      NOT NULL DEFAULT FALSE
 );
 
+CREATE TABLE tb_property_classification (
+      id                                                SERIAL      PRIMARY KEY
+    , name                                              VARCHAR(50) NOT NULL UNIQUE
+    , group_name                                        VARCHAR(20) NOT NULL
+      CONSTRAINT chk_tb_property_classification_group   CHECK (group_name IN ('RESIDENCIAL', 'COMERCIAL'))
+);
+
 CREATE TABLE tb_property (
       id                    SERIAL              PRIMARY KEY
     , name                  VARCHAR(100)        NOT NULL
     , type                  VARCHAR(20)         NOT NULL
       CONSTRAINT chk_tb_property_type           CHECK (type IN ('CASA', 'PRÉDIO'))
-    , classification        VARCHAR(20)         NOT NULL
-      CONSTRAINT chk_tb_property_classification CHECK (classification IN ('RESIDENCIAL', 'COMERCIAL'))
+    , classification_id     INTEGER             NOT NULL
     , address_id            INTEGER             NOT NULL
     , registration_date     DATE                NOT NULL DEFAULT CURRENT_DATE
     , CONSTRAINT uq_tb_property_name_address    UNIQUE (name, address_id)
+    , CONSTRAINT fk_tb_property_classification  FOREIGN KEY (classification_id)
+        REFERENCES tb_property_classification (id)
+        ON DELETE RESTRICT
+        ON UPDATE CASCADE
     , CONSTRAINT fk_tb_property_address         FOREIGN KEY (address_id)
         REFERENCES tb_address (id)
         ON DELETE RESTRICT

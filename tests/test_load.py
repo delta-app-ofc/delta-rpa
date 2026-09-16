@@ -130,7 +130,7 @@ def test_property_insert_uses_on_conflict_name_address():
                 "id": 1,
                 "name": "X",
                 "type": "CASA",
-                "classification": "RESIDENCIAL",
+                "classification_id": 1,
                 "address_id": 9,
             }
         ])
