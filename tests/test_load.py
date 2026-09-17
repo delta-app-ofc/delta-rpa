@@ -101,13 +101,13 @@ def test_unique_table_insert_uses_on_conflict():
     connection = FakeConnection()
 
     dataframes = {
-        "tb_region_rate": pd.DataFrame([
+        "tb_address": pd.DataFrame([
             {
                 "id": 1,
                 "region_id": 2,
-                "m3_value": 5.5,
-                "initial_validity": "2026-01-01",
-                "final_validity": None,
+                "cep": "01001000",
+                "city": "SAO PAULO",
+                "state": "SP",
             }
         ])
     }
@@ -116,8 +116,8 @@ def test_unique_table_insert_uses_on_conflict():
 
     statement = connection.statements[0][0]
 
-    assert "INSERT INTO tb_region_rate" in statement
-    assert "ON CONFLICT (region_id, initial_validity)" in statement
+    assert "INSERT INTO tb_address" in statement
+    assert "ON CONFLICT (cep)" in statement
     assert "DO UPDATE SET" in statement
 
 

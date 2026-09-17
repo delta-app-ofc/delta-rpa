@@ -98,7 +98,6 @@ def main():
         "tb_address",
         "tb_property",
         "tb_user_property",
-        "tb_region_rate",
         "tb_device"
     }
 

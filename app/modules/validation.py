@@ -66,10 +66,6 @@ UNIQUE_COLUMNS = {
         ["device_id"]
     ],
 
-    "tb_region_rate": [
-        ["region_id", "initial_validity"]
-    ],
-
     "tb_user_habit": [
         ["user_id", "habit_id"]
     ],
@@ -103,10 +99,6 @@ FOREIGN_KEYS = {
         "property_id": ("tb_property", "id")
     },
 
-    "tb_region_rate": {
-        "region_id": ("tb_region", "id")
-    },
-
     "tb_user_habit": {
         "user_id": ("tb_user", "id"),
         "habit_id": ("tb_habit", "id")
@@ -129,7 +121,6 @@ VALIDATION_PRIORITY = [
     "tb_property",
     "tb_user_property",
     "tb_device",
-    "tb_region_rate",
     "tb_user_habit",
     "tb_user_habit_day",
     "tb_last_water_bill"

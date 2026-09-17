@@ -1,9 +1,9 @@
 INSERT INTO tb_region (id, name) VALUES
-    (1, 'LESTE'),
-    (2, 'OESTE'),
-    (3, 'SUL'),
-    (4, 'NORTE'),
-    (5, 'CENTRO');
+    (1, 'GRANDE_SP'),
+    (2, 'LINS'),
+    (3, 'PRESIDENTE_PRUDENTE'),
+    (4, 'ADAMANTINA_PIRAPOZINHO'),
+    (5, 'BRAGANCA_PAULISTA');
 
 
 INSERT INTO tb_day_of_week (id, name) VALUES
