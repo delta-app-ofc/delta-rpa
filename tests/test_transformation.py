@@ -31,6 +31,20 @@ def test_replaces_apartment_with_building_and_keeps_house():
     assert types == ["PRÉDIO", "CASA"]
 
 
+def test_maps_classification_to_the_new_lookup_id():
+    dataframes = {
+        "tb_property": pd.DataFrame([
+            {"id": 1, "name": "a", "type": "CASA", "classification": "residencial", "address_id": 1},
+            {"id": 2, "name": "b", "type": "CASA", "classification": "comercial", "address_id": 1},
+        ])
+    }
+
+    result = transform_data(dataframes)
+
+    assert "classification" not in result["tb_property"].columns
+    assert list(result["tb_property"]["classification_id"]) == [1, 5]
+
+
 def test_table_without_rules_remains_unchanged():
     dataframes = {
         "tb_region_rate": pd.DataFrame([

@@ -66,26 +66,6 @@ def test_duplicate_records_are_all_removed():
     assert result["valid"]["tb_user"].iloc[0]["email"] == "unique@x.com"
 
 
-def test_region_rate_duplicate_natural_key_is_reported():
-    """
-    tb_region_rate passou a ter chave natural (region_id, initial_validity):
-    duas linhas com o mesmo par são marcadas como duplicadas.
-    """
-    dataframes = {
-        "tb_region_rate": pd.DataFrame([
-            {"id": 1, "region_id": 1, "m3_value": 5.5, "initial_validity": "2026-01-01"},
-            {"id": 2, "region_id": 1, "m3_value": 6.0, "initial_validity": "2026-01-01"},
-            {"id": 3, "region_id": 2, "m3_value": 6.0, "initial_validity": "2026-01-01"},
-        ])
-    }
-
-    result = validate_data(dataframes)
-
-    assert len(result["valid"]["tb_region_rate"]) == 1
-    assert result["valid"]["tb_region_rate"].iloc[0]["region_id"] == 2
-    assert "tb_region_rate" in result["errors"]
-
-
 def test_invalid_foreign_key_is_reported():
     dataframes = {
         "tb_user": pd.DataFrame([

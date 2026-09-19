@@ -29,7 +29,8 @@ O processo é executado de ponta a ponta pelo script `app/main.py`, que orquestr
 3. **Transformação** (`app/modules/transformation.py`)
    Normaliza os dados válidos conforme regras em `TRANSFORMATIONS`, como:
    - Conversão de colunas para maiúsculas (ex.: `name`, `email`, `city`, `state`);
-   - Substituição de valores (ex.: `APARTAMENTO` → `PRÉDIO` em `tb_property.type`).
+   - Substituição de valores (ex.: `APARTAMENTO` → `PRÉDIO` em `tb_property.type`);
+   - Mapeamento pro id da tabela nova (ex.: `tb_property.classification` do legado, texto livre `RESIDENCIAL`/`COMERCIAL`, é convertido pro `classification_id` correspondente em `tb_property_classification` e a coluna é renomeada).
 4. **Carga** (`app/modules/load.py`)
    Sincroniza o banco novo com o legado, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`) e remapeando chaves estrangeiras (IDs antigos → novos):
    - **Mapa de ids persistido**: `state/id_map.json` guarda, entre execuções, a relação `id_legado → id_novo` de cada tabela (`app/modules/state.py`).

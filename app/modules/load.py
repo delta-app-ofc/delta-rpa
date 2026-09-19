@@ -17,7 +17,6 @@ LOAD_PRIORITY = [
     "tb_property",
     "tb_user_property",
     "tb_device",
-    "tb_region_rate",
     "tb_user_habit",
     "tb_user_habit_day",
     "tb_last_water_bill"
@@ -37,7 +36,6 @@ UNIQUE_COLUMNS = {
     "tb_property": ["name", "address_id"],
     "tb_device": ["device_id"],
     "tb_user_property": ["user_id", "property_id"],
-    "tb_region_rate": ["region_id", "initial_validity"],
     "tb_user_habit": ["user_id", "habit_id"],
     "tb_user_habit_day": ["user_habit_id", "day_of_week_id"],
     "tb_last_water_bill": ["user_id", "month"]
@@ -79,9 +77,10 @@ def _replace_foreign_keys(
     Substitui, nas colunas de chave estrangeira, os ids do banco legado pelos ids
     correspondentes no banco novo, usando o mapa de ids.
 
-    Tabelas que não são migradas pelo RPA (tb_region, tb_habit, tb_day_of_week)
-    não aparecem no mapa de ids; nesse caso a coluna é mantida como está, porque
-    esses registros têm o mesmo id nos dois bancos.
+    Tabelas que não são migradas pelo RPA (tb_region, tb_habit, tb_day_of_week,
+    tb_property_classification, tb_region_rate) não aparecem no mapa de ids;
+    nesse caso a coluna é mantida como está, porque esses registros têm o
+    mesmo id nos dois bancos.
     """
     dataframe = dataframe.copy()
 
