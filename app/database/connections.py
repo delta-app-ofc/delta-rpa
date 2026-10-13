@@ -17,7 +17,7 @@ def _build_url(prefix: str) -> str:
     port = os.getenv(f"{prefix}_DB_PORT", "")
     name = os.getenv(f"{prefix}_DB_NAME", "")
 
-    return f"postgresql://{user}:{password}@{host}:{port}/{name}"
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
 
 
 def create_first_year_connection():
