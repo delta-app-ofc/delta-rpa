@@ -1,4 +1,3 @@
-
 # Delta - RPA
  
 RPA (Robotic Process Automation) responsável por orquestrar a **migração de dados entre o banco legado (Primeiro Ano) e o novo banco normalizado (Segundo Ano)**, garantindo a integridade dos dados e tratando falhas durante o processo de carga.
@@ -125,16 +124,9 @@ cp .env.example .env
 python app/main.py
 ```
  
-### Com Docker
- 
-```bash
-docker build -t delta-rpa .
-docker run --env-file .env -v $(pwd)/logs:/app/logs delta-rpa
-```
- 
 ## Testes
  
-O projeto possui testes unitários (`tests/`) e um ambiente de teste completo via Docker Compose, que sobe dois bancos PostgreSQL (legado e novo, populados pelos scripts em `test/init-legacy` e `test/init-new`) e executa o RPA de ponta a ponta.
+O projeto possui testes unitários (`tests/`) e um ambiente Docker para integração, cujo uso está documentado no guia abaixo.
  
 Testes unitários:
  
@@ -143,16 +135,8 @@ pip install -r requirements-dev.txt
 pytest
 ```
  
-Teste de integração (bancos + RPA via Docker):
- 
-```bash
-docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
-```
- 
-Isso sobe:
-- `legacy-db`: banco legado, na porta `5433`;
-- `new-db`: banco novo, na porta `5434`;
-- `rpa`: executa o pipeline completo contra os dois bancos acima, usando as variáveis definidas em `.env.test`.
+Consulte [DOCKER-HELP.md](DOCKER-HELP.md) para usar o ambiente Docker local.
+
 ## Logs
  
 Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, contendo as informações de cada etapa do pipeline (extração, validação, transformação, carga, exclusão) e o resultado final (commit ou rollback).
