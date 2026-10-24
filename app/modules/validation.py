@@ -17,7 +17,7 @@ RULES = {
         "allowed_source_values": {
             "type": [
                 "CASA",
-                "APARTAMENTO"
+                "PRÉDIO"
             ]
         }
 
@@ -87,7 +87,10 @@ FOREIGN_KEYS = {
     },
 
     "tb_property": {
-        "address_id": ("tb_address", "id")
+        "address_id": ("tb_address", "id"),
+        # classification_id não é validado aqui porque tb_property_classification
+        # é dado de referência fixo (não migrado pelo RPA). Os ids são mantidos
+        # como estão no legado. Se os ids divergirem entre ambientes, o INSERT falhará.
     },
 
     "tb_user_property": {
