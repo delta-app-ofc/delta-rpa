@@ -1,4 +1,15 @@
 import pandas as pd
+from argon2 import PasswordHasher
+
+# Mesmos parâmetros do Argon2PasswordEncoder da delta-api-postgres
+# (SecurityConfig): salt 16, hash 32, paralelismo 1, 19456 KiB, 2 iterações.
+_PASSWORD_HASHER = PasswordHasher(
+    time_cost=2,
+    memory_cost=19456,
+    parallelism=1,
+    hash_len=32,
+    salt_len=16
+)
 
 TRANSFORMATIONS = {
 
@@ -24,6 +35,14 @@ TRANSFORMATIONS = {
         "uppercase": [
             "name",
             "email"
+        ],
+
+        "argon2": [
+            "password"
+        ],
+
+        "phone": [
+            "phone"
         ]
     },
 
@@ -75,6 +94,68 @@ def _transform_uppercase(
                 dataframe.at[index, column] = value.upper()
 
     return dataframe
+
+def _transform_argon2(
+    dataframe: pd.DataFrame,
+    columns: list[str]
+):
+    """
+    Troca a senha em texto puro do legado por um hash Argon2id.
+
+    Valores que já começam com ``$argon2`` são mantidos, para não gerar
+    hash de um hash caso o legado passe a guardá-lo assim.
+    """
+    dataframe = dataframe.copy()
+
+    def _hash(value):
+        if not isinstance(value, str) or value.startswith("$argon2"):
+            return value
+
+        return _PASSWORD_HASHER.hash(value)
+
+    for column in columns:
+
+        if column not in dataframe.columns:
+            continue
+
+        dataframe[column] = dataframe[column].map(_hash).astype("object")
+
+    return dataframe
+
+
+def _transform_phone(
+    dataframe: pd.DataFrame,
+    columns: list[str]
+):
+    """
+    Formata telefone só com dígitos como (11) 91155-1155 (celular, 11 dígitos)
+    ou (11) 1155-1155 (fixo, 10 dígitos). Outros formatos ficam como estão.
+    """
+    dataframe = dataframe.copy()
+
+    def _format(value):
+        if not isinstance(value, str):
+            return value
+
+        digits = "".join(char for char in value if char.isdigit())
+
+        if len(digits) == 11:
+            return f"({digits[:2]}) {digits[2:7]}-{digits[7:]}"
+
+        if len(digits) == 10:
+            return f"({digits[:2]}) {digits[2:6]}-{digits[6:]}"
+
+        return value
+
+    for column in columns:
+
+        if column not in dataframe.columns:
+            continue
+
+        dataframe[column] = dataframe[column].map(_format).astype("object")
+
+    return dataframe
+
 
 def _transform_to_string(
     dataframe: pd.DataFrame,
@@ -157,6 +238,16 @@ def _transform_table(
     transformed = _transform_uppercase(
         transformed,
         rules.get("uppercase", [])
+    )
+
+    transformed = _transform_argon2(
+        transformed,
+        rules.get("argon2", [])
+    )
+
+    transformed = _transform_phone(
+        transformed,
+        rules.get("phone", [])
     )
 
     transformed = _transform_to_string(
