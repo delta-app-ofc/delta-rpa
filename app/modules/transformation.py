@@ -6,7 +6,18 @@ TRANSFORMATIONS = {
         "uppercase": [
             "city",
             "state"
-        ]
+        ],
+
+        # No legado as regiões são zonas de São Paulo (ZONA LESTE, CENTRO,
+        # ZONA NORTE). No banco novo a região define a tarifa, e todas essas
+        # zonas pertencem a GRANDE_SP (id 1).
+        "replace": {
+            "region_id": {
+                4: 1,
+                12: 1,
+                13: 1
+            }
+        }
     },
 
     "tb_user": {
