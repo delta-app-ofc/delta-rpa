@@ -344,6 +344,8 @@ def _validate_foreign_keys(
                     )
                 )
 
+                errors[-1]["table"] = table
+
 def _validate_duplicates(
     dataframe: pd.DataFrame,
     rules: list,
@@ -461,10 +463,26 @@ def validate_data(
 
     foreign_key_errors = []
 
-    _validate_foreign_keys(
-        valid_data,
-        foreign_key_errors
-    )
+    # Registros com chave estrangeira inválida são removidos (README, etapa 2).
+    # Repete até não sobrar nenhum, porque remover um registro pode deixar
+    # órfãos em outra tabela (ex.: imóvel removido -> vínculo usuário/imóvel).
+    while True:
+        round_errors = []
+
+        _validate_foreign_keys(
+            valid_data,
+            round_errors
+        )
+
+        if not round_errors:
+            break
+
+        foreign_key_errors.extend(round_errors)
+
+        for error in round_errors:
+            valid_data[error["table"]] = valid_data[
+                error["table"]
+            ].drop(index=error["index"], errors="ignore")
 
     if foreign_key_errors:
         errors_by_table["foreign_keys"] = pd.DataFrame(

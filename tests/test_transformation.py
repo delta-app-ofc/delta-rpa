@@ -72,3 +72,31 @@ def test_device_id_is_converted_to_string():
     value = result["tb_device"].iloc[0]["device_id"]
     assert value == "1001"
     assert isinstance(value, str)
+
+def test_hashes_user_password_with_argon2id():
+    dataframes = {
+        "tb_user": pd.DataFrame([
+            {"id": 1, "name": "a", "email": "a@a.com", "password": "senha123"},
+            {"id": 2, "name": "b", "email": "b@a.com", "password": "$argon2id$ja-hasheada"},
+        ])
+    }
+
+    result = transform_data(dataframes)["tb_user"]
+
+    assert result.iloc[0]["password"].startswith("$argon2id$v=19$m=19456,t=2,p=1$")
+    assert "senha123" not in result.iloc[0]["password"]
+    assert result.iloc[1]["password"] == "$argon2id$ja-hasheada"
+
+
+def test_formats_phone_as_brazilian_mask():
+    dataframes = {
+        "tb_user": pd.DataFrame([
+            {"id": 1, "name": "a", "email": "a@a.com", "password": "x", "phone": "11911551155"},
+            {"id": 2, "name": "b", "email": "b@a.com", "password": "x", "phone": "1131551155"},
+            {"id": 3, "name": "c", "email": "c@a.com", "password": "x", "phone": "(11) 91155-1155"},
+        ])
+    }
+
+    result = transform_data(dataframes)["tb_user"]
+
+    assert list(result["phone"]) == ["(11) 91155-1155", "(11) 3155-1155", "(11) 91155-1155"]
