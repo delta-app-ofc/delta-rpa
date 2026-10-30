@@ -5,6 +5,8 @@ services:
       POSTGRES_DB: deltadb
       POSTGRES_USER: legacy
       POSTGRES_PASSWORD: legacy_pass
+    tmpfs:
+      - /var/lib/postgresql/data
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
@@ -14,6 +16,8 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    networks:
+      - test
 
   new-db:
     image: postgres:16-alpine
@@ -21,6 +25,8 @@ services:
       POSTGRES_DB: deltadb
       POSTGRES_USER: novo
       POSTGRES_PASSWORD: "novo_pass#123"
+    tmpfs:
+      - /var/lib/postgresql/data
     ports:
       - "127.0.0.1:5434:5432"
     volumes:
@@ -30,6 +36,8 @@ services:
       interval: 3s
       timeout: 3s
       retries: 10
+    networks:
+      - test
 
   rpa:
     build: .
@@ -55,7 +63,13 @@ services:
       - test-logs:/app/logs
       - test-state:/app/state
     command: ["python", "/app/app/main.py"]
+    networks:
+      - test
 
 volumes:
   test-logs:
   test-state:
+
+networks:
+  test:
+    internal: true
