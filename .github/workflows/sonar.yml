@@ -42,7 +42,7 @@ jobs:
 
   scan:
     needs: tests
-    uses: delta-app-ofc/.github/.github/workflows/sonar_scan.yml@cb23646ff67b82ee47a73f4c94babef59c1dd20d
+    uses: delta-app-ofc/.github/.github/workflows/sonar_scan.yml@d16a26074a524d0d414fa03b97931fb8d7713d90
     with:
       project_key: ${{ vars.SONAR_PROJECT_KEY || 'delta-app-ofc_delta-rpa' }}
       organization: ${{ vars.SONAR_ORGANIZATION || 'delta-app-ofc' }}
