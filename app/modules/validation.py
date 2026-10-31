@@ -17,6 +17,7 @@ RULES = {
         "allowed_source_values": {
             "type": [
                 "CASA",
+                "APARTAMENTO",
                 "PRÉDIO"
             ]
         }
