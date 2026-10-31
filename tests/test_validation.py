@@ -32,6 +32,25 @@ def test_rejects_value_outside_allowed_domain():
     assert result["valid"]["tb_property"].iloc[0]["type"] == "CASA"
 
 
+def test_accepts_legacy_apartment_type_before_transformation():
+    dataframes = {
+        "tb_property": pd.DataFrame([
+            {
+                "id": 1,
+                "name": "Apartment",
+                "type": "APARTAMENTO",
+                "classification": "residencial",
+                "address_id": 1,
+            },
+        ])
+    }
+
+    result = validate_data(dataframes)
+
+    assert len(result["valid"]["tb_property"]) == 1
+    assert "tb_property" not in result["errors"]
+
+
 def test_rejects_date_that_is_not_first_day_of_month():
     dataframes = {
         "tb_last_water_bill": pd.DataFrame([
