@@ -50,3 +50,29 @@ def test_find_tables_preserves_requested_order_and_results(monkeypatch):
     assert calls == ["tb_address", "tb_device"]
     assert list(result) == ["tb_address", "tb_device"]
     assert result["tb_device"].iloc[0]["table"] == "tb_device"
+
+
+def test_renames_legacy_columns_to_canonical_names():
+    dataframe = pd.DataFrame([
+        {"id": 1, "user_name": "Ana", "user_password": "senha123", "email": "ana@x.com"},
+    ])
+
+    result = extraction._rename_legacy_columns("tb_user", dataframe)
+
+    assert list(result.columns) == ["id", "name", "password", "email"]
+
+
+def test_keeps_columns_unchanged_for_table_without_renames():
+    dataframe = pd.DataFrame({"id": [1]})
+
+    result = extraction._rename_legacy_columns("tb_user_property", dataframe)
+
+    assert result is dataframe
+
+
+def test_ignores_renames_for_columns_not_present():
+    dataframe = pd.DataFrame({"id": [1]})
+
+    result = extraction._rename_legacy_columns("tb_user", dataframe)
+
+    assert result is dataframe
