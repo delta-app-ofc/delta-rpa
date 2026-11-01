@@ -1,4 +1,4 @@
-INSERT INTO tb_region (id, name) VALUES
+INSERT INTO tb_region (id, region_name) VALUES
     (1, 'LESTE'),
     (2, 'OESTE'),
     (3, 'SUL'),
@@ -6,7 +6,7 @@ INSERT INTO tb_region (id, name) VALUES
     (5, 'CENTRO');
 
 
-INSERT INTO tb_address (id, region_id, cep, city, state) VALUES
+INSERT INTO tb_address (id, region_id, cep, city, adress_state) VALUES
     (1, 1, '01001000', 'sao paulo', 'sp'),
     (2, 2, '80010000', 'curitiba', 'pr'),
     (3, 3, '90010000', 'porto alegre', 'rs'),
@@ -15,9 +15,9 @@ INSERT INTO tb_address (id, region_id, cep, city, state) VALUES
 
 INSERT INTO tb_user (
     id,
-    name,
+    user_name,
     email,
-    password,
+    user_password,
     phone,
     birth_date,
     registration_date,
@@ -34,8 +34,8 @@ INSERT INTO tb_user (
 
 INSERT INTO tb_property (
     id,
-    name,
-    type,
+    property_name,
+    property_type,
     classification,
     address_id,
     registration_date
@@ -59,8 +59,8 @@ INSERT INTO tb_user_property (
 
 INSERT INTO tb_habit (
     id,
-    name,
-    description
+    habit_name,
+    habit_description
 ) VALUES
     (1, 'BANHO LONGO', 'Banhos com duração prolongada'),
     (2, 'LAVAR QUINTAL', 'Lavagem do quintal'),
@@ -83,7 +83,7 @@ INSERT INTO tb_user_habit (
 
 INSERT INTO tb_day_of_week (
     id,
-    name
+    day_name
 ) VALUES
     (1, 'SEGUNDA'),
     (2, 'TERCA'),
@@ -131,7 +131,7 @@ INSERT INTO tb_device (
 INSERT INTO tb_last_water_bill (
     id,
     user_id,
-    month,
+    bill_month,
     total_value,
     m3_value
 ) VALUES
