@@ -1,11 +1,40 @@
-# Delta - RPA
+# Delta · RPA de migração PostgreSQL
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-2496ED?logo=docker&logoColor=white)
+![ETL](https://img.shields.io/badge/Pipeline-ETL%20com%20valida%C3%A7%C3%A3o-2E8B57)
  
 RPA (Robotic Process Automation) responsável por orquestrar a **migração de dados entre o banco legado (Primeiro Ano) e o novo banco normalizado (Segundo Ano)**, garantindo a integridade dos dados e tratando falhas durante o processo de carga.
  
 O projeto implementa um pipeline **ETL (Extract, Transform, Load)** com uma etapa adicional de **validação**, aplicando regras de negócio antes de mover os dados para o banco de destino.
  
 
+**Tags:** `rpa` · `etl` · `migração-de-dados` · `postgresql` · `python` · `pandas` · `sqlalchemy` · `docker-compose`
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Como funciona o pipeline](#como-funciona-o-pipeline)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Pré-requisitos](#pré-requisitos)
+- [Configuração](#configuração)
+- [Como executar](#como-executar)
+- [Testes](#testes)
+- [Automação no GitHub](#automação-no-github)
+- [Logs](#logs)
+- [Referências relacionadas](#referências-relacionadas)
+
 ## Visão geral
+
+| Aspecto | Implementação neste repositório |
+|---|---|
+| Origem e destino | Dois bancos PostgreSQL: base legada do Primeiro Ano e base normalizada do Segundo Ano. |
+| Fluxo | Extração → validação → transformação → carga, orquestradas por `app/main.py`. |
+| Integridade | Regras de idade, valores permitidos, unicidade e chaves estrangeiras antes da carga. |
+| Sincronização | Remapeamento de IDs, inserções, atualizações e exclusões no destino dentro de uma transação. |
+| Estado e auditoria | Mapa de IDs entre execuções, logs locais e registro em `tb_log_rpa` no banco novo. |
+| Ambiente de teste | Compose com PostgreSQL 16 e dados de fixture; instruções em [`DOCKER-HELP.md`](DOCKER-HELP.md). |
  
 O `delta-rpa` conecta-se a dois bancos PostgreSQL:
  
@@ -44,6 +73,12 @@ Cada etapa gera logs estruturados (`app/modules/logs.py`), tanto em console quan
  
 ```
 delta-rpa/
+├── .github/
+│   └── workflows/
+│       ├── rpa.yml              # Execução agendada ou manual do pipeline
+│       └── trigger_actions.yml # Verificações organizacionais de Pull Request
+├── .gitignore
+├── AGENTS.md
 ├── app/
 │   ├── main.py                  # Orquestra o pipeline ETL
 │   ├── database/
@@ -68,11 +103,13 @@ delta-rpa/
 ├── logs/                        # Logs gerados em tempo de execução
 ├── Dockerfile
 ├── docker-compose.test.yml      # Sobe bancos de teste + executa o RPA
+├── DOCKER-HELP.md               # Guia do ambiente local de integração
 ├── pytest.ini
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── .env.example
-└── LICENSE
+├── LICENSE
+└── README.md
 ```
  
 ## Pré-requisitos
@@ -137,6 +174,13 @@ pytest
  
 Consulte [DOCKER-HELP.md](DOCKER-HELP.md) para usar o ambiente Docker local.
 
+## Automação no GitHub
+
+- `.github/workflows/rpa.yml` está configurado para executar `python app/main.py` diariamente (cron do GitHub Actions) ou por acionamento manual, após instalar `requirements.txt`. As conexões vêm dos secrets `FIRST_YEAR_DB_*` e `SECOND_YEAR_DB_*`; `BATCH_SIZE` é definido no workflow. A execução pode alterar os dados do banco de destino, então configure apenas credenciais e ambientes autorizados.
+- `.github/workflows/trigger_actions.yml` chama as verificações organizacionais quando uma Pull Request é aberta ou editada. Ele valida a governança da PR; não executa os testes do RPA.
+
+A presença do workflow de execução não confirma que seus secrets estejam configurados nem que a execução remota mais recente tenha sido bem-sucedida.
+
 ## Logs
  
 Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, contendo as informações de cada etapa do pipeline (extração, validação, transformação, carga, exclusão) e o resultado final (commit ou rollback).
@@ -144,3 +188,8 @@ Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, con
 Além do log em arquivo, cada execução grava uma linha na tabela `tb_log_rpa` do banco novo, com início, fim, status (`SUCCESS`/`ERROR`), quantidade de registros inseridos, atualizados e excluídos, quantidade de erros de validação e a mensagem de erro quando houver. O script de criação dessa tabela está em `test/init-new/01-schema.sql`.
 
 O mapa de ids usado entre execuções fica em `state/id_map.json` (estado local, não versionado).
+
+## Referências relacionadas
+
+- [delta-handbook](https://github.com/delta-app-ofc/delta-handbook) — convenções de desenvolvimento e documentação das regras de negócio.
+- [delta-sql-database](https://github.com/delta-app-ofc/delta-sql-database) — scripts do banco PostgreSQL normalizado.
