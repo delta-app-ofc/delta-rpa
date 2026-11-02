@@ -3,6 +3,20 @@ import pandas as pd
 from modules.validation import validate_data
 
 
+def test_accepts_repeated_habits_for_the_same_user():
+    dataframes = {
+        "tb_user_habit": pd.DataFrame([
+            {"id": 1, "user_id": 10, "habit_id": 2, "frequency": 3},
+            {"id": 2, "user_id": 10, "habit_id": 2, "frequency": 3},
+        ])
+    }
+
+    result = validate_data(dataframes)
+
+    assert result["valid"]["tb_user_habit"]["id"].tolist() == [1, 2]
+    assert "tb_user_habit" not in result["errors"]
+
+
 def test_rejects_underage_user():
     dataframes = {
         "tb_user": pd.DataFrame([

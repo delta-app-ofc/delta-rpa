@@ -63,10 +63,6 @@ UNIQUE_COLUMNS = {
         ["device_id"]
     ],
 
-    "tb_user_habit": [
-        ["user_id", "habit_id"]
-    ],
-
     "tb_user_habit_day": [
         ["user_habit_id", "day_of_week_id"]
     ],

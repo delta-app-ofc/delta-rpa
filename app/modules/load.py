@@ -45,10 +45,12 @@ UNIQUE_COLUMNS = {
     "tb_property": ["name", "address_id"],
     "tb_device": ["device_id"],
     "tb_user_property": ["user_id", "property_id"],
-    "tb_user_habit": ["user_id", "habit_id"],
     "tb_user_habit_day": ["user_habit_id", "day_of_week_id"],
     "tb_last_water_bill": ["user_id", "month"]
 }
+
+# tb_user_habit permite várias ocorrências do mesmo hábito por usuário.
+# Cada ocorrência é identificada pelo próprio id, preservado no mapa de ids.
 
 
 def _empty_counts() -> dict:

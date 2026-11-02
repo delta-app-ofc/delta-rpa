@@ -201,6 +201,43 @@ def test_address_coordinates_are_not_overwritten_on_update():
     assert "longitude" not in statement
 
 
+def test_repeated_habits_keep_separate_ids_and_update_on_next_run():
+    connection = FakeConnection()
+    id_map = {"tb_user": {10: 100}}
+    habits = pd.DataFrame([
+        {"id": 1, "user_id": 10, "habit_id": 2, "frequency": 3},
+        {"id": 2, "user_id": 10, "habit_id": 2, "frequency": 3},
+    ])
+    days = pd.DataFrame([
+        {"id": 7, "user_habit_id": 1, "day_of_week_id": 1},
+        {"id": 8, "user_habit_id": 2, "day_of_week_id": 1},
+    ])
+    dataframes = {"tb_user_habit": habits, "tb_user_habit_day": days}
+    counts = {}
+
+    _apply_upserts(connection, dataframes, id_map, counts)
+
+    assert id_map["tb_user_habit"] == {1: 1001, 2: 1002}
+    assert counts["tb_user_habit"] == {"inserted": 2, "updated": 0, "deleted": 0}
+    for statement, parameters in connection.statements[:2]:
+        assert "INSERT INTO tb_user_habit " in statement
+        assert "ON CONFLICT" not in statement
+        assert parameters["user_id"] == 100
+    assert connection.statements[2][1]["user_habit_id"] == 1001
+    assert connection.statements[3][1]["user_habit_id"] == 1002
+
+    connection.statements.clear()
+    habits.loc[0, "frequency"] = 6
+    counts = {}
+    _apply_upserts(connection, dataframes, id_map, counts)
+
+    assert counts["tb_user_habit"] == {"inserted": 0, "updated": 2, "deleted": 0}
+    assert all("INSERT" not in sql for sql in _sql_list(connection))
+    assert connection.statements[0][1]["target_id"] == 1001
+    assert connection.statements[0][1]["frequency"] == 6
+    assert connection.statements[1][1]["target_id"] == 1002
+
+
 # --------------------------------------------------------------------------- #
 # Detecção e replicação de exclusão (R3)
 # --------------------------------------------------------------------------- #
