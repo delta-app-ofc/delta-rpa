@@ -22,6 +22,13 @@ LOAD_PRIORITY = [
     "tb_last_water_bill"
 ]
 
+# Colunas que o RPA só grava na primeira carga. O legado não tem esses dados e o
+# RPA gera um valor aproximado, então reexecuções não podem sobrescrever o que já
+# está no banco novo (por exemplo, uma coordenada corrigida manualmente).
+INSERT_ONLY_COLUMNS = {
+    "tb_address": ["latitude", "longitude"]
+}
+
 # Chaves naturais (colunas únicas) usadas no INSERT ... ON CONFLICT.
 #
 # Cada tabela aqui precisa ter, no banco novo, uma restrição UNIQUE
@@ -104,6 +111,13 @@ def _replace_foreign_keys(
     return dataframe
 
 
+def _updatable_columns(table: str, columns: list) -> list:
+    """Colunas que podem ser atualizadas (tira as que são só da primeira carga)."""
+    insert_only = INSERT_ONLY_COLUMNS.get(table, [])
+
+    return [column for column in columns if column not in insert_only]
+
+
 def _insert_row(
     connection,
     table: str,
@@ -127,7 +141,7 @@ def _insert_row(
 
         update_columns = ", ".join(
             f"{column} = EXCLUDED.{column}"
-            for column in columns
+            for column in _updatable_columns(table, columns)
         )
 
         query = text(
@@ -167,7 +181,7 @@ def _update_row(
     """
     assignments = ", ".join(
         f"{column} = :{column}"
-        for column in columns
+        for column in _updatable_columns(table, columns)
     )
 
     query = text(

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from modules import load
-from modules.load import _apply_deletions, _apply_upserts, _insert_row
+from modules.load import _apply_deletions, _apply_upserts, _insert_row, _update_row
 
 
 class _FakeResult:
@@ -155,6 +155,36 @@ def test_insert_row_without_natural_key_is_plain_insert():
 
     assert "INSERT INTO tb_sem_chave" in statement
     assert "ON CONFLICT" not in statement
+
+
+def test_address_coordinates_are_not_overwritten_on_conflict():
+    connection = FakeConnection()
+    columns = ["cep", "city", "latitude", "longitude"]
+    values = {"cep": "01001000", "city": "SAO PAULO", "latitude": -23.5, "longitude": -46.6}
+
+    _insert_row(connection, "tb_address", columns, values)
+
+    statement = connection.statements[0][0]
+    update_part = statement.split("DO UPDATE SET")[1]
+
+    assert "latitude" in statement.split("DO UPDATE SET")[0]
+    assert "city = EXCLUDED.city" in update_part
+    assert "latitude" not in update_part
+    assert "longitude" not in update_part
+
+
+def test_address_coordinates_are_not_overwritten_on_update():
+    connection = FakeConnection()
+    columns = ["cep", "city", "latitude", "longitude"]
+    values = {"cep": "01001000", "city": "SAO PAULO", "latitude": -23.5, "longitude": -46.6}
+
+    _update_row(connection, "tb_address", columns, values, 7)
+
+    statement = connection.statements[0][0]
+
+    assert "city = :city" in statement
+    assert "latitude" not in statement
+    assert "longitude" not in statement
 
 
 # --------------------------------------------------------------------------- #
