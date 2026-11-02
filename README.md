@@ -1,4 +1,4 @@
-# 🤖 Delta · RPA de Migração
+# Delta · RPA de Migração
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-origem%20e%20destino-356ce0?logo=postgresql&logoColor=white)
