@@ -16,6 +16,7 @@ _PASSWORD_HASHER = PasswordHasher(
 # O banco do primeiro ano não guarda latitude/longitude, mas tb_address no banco
 # novo exige as duas (NOT NULL). Sem serviço externo, usamos o centro da cidade.
 # Cidades fora da lista caem no centro de São Paulo (DEFAULT_COORDINATES).
+# As coordenadas são aproximadas (centro da cidade), não o ponto exato do endereço.
 CITY_COORDINATES = {
     "SAO PAULO": (-23.550520, -46.633308),
     "GUARULHOS": (-23.453800, -46.533300),
