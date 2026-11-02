@@ -7,7 +7,7 @@
 ![Docker](https://img.shields.io/badge/Docker-testes%20de%20integração-2496ed?logo=docker&logoColor=white)
 ![Pytest](https://img.shields.io/badge/Pytest-testes%20unitários-0a9edc?logo=pytest&logoColor=white)
 
-O robô que leva os dados do passado para o futuro, sem derramar nenhuma gota. O `delta-rpa` copia, confere e organiza as informações do banco legado do Primeiro Ano para o novo banco normalizado do Segundo Ano do **Projeto Delta**. Se alguma coisa der errado no caminho, ele desfaz tudo e avisa.
+O robô que leva os dados do passado para o futuro, sem derramar nenhuma gota. O `delta-rpa` copia, confere e organiza as informações do banco legado do Primeiro Ano para o novo banco normalizado do Segundo Ano do **Projeto Delta**. As alterações da etapa de carga no banco novo são feitas em uma transação. Se a carga falhar antes do commit, ocorre rollback e o erro é registrado. A gravação do mapa de IDs acontece depois do commit e não faz parte dessa transação.
 
 **Tags:** `rpa` · `etl` · `python` · `postgresql` · `pandas` · `sqlalchemy` · `data-migration` · `data-validation` · `docker` · `pytest` · `github-actions`
 
@@ -19,9 +19,9 @@ O projeto implementa um pipeline **ETL (Extract, Transform, Load)** com uma etap
 
 Este repositório é a evidência do requisito **MOD-04** (orquestrar RPA para mover dados do banco legado ao novo normalizado, garantindo integridade e tratamento de falhas de carga).
 
-- [Justificativa do requisito MOD-04](https://github.com/delta-app-ofc/delta-handbook/blob/main/DADOS/SQL/documenta%C3%A7%C3%A3o-requisitos/mod-04-rpa-migracao-banco-legado.md)
+- [Justificativa do requisito MOD-04](https://github.com/delta-app-ofc/delta-handbook/blob/docs/explicacao-requisitos/DADOS/SQL/documenta%C3%A7%C3%A3o-requisitos/mod-04-rpa-migracao-banco-legado.md)
 - [Orquestração principal](app/main.py)
-- [README que reúne todos os requisitos de modelagem](https://github.com/delta-app-ofc/delta-sql-database/blob/main/README.md)
+- [README que reúne todos os requisitos de modelagem](https://github.com/delta-app-ofc/delta-sql-database/blob/docs/readme-modelagem/README.md)
 
 ## Visão geral
  
