@@ -101,13 +101,11 @@ def test_unique_table_insert_uses_on_conflict():
     connection = FakeConnection()
 
     dataframes = {
-        "tb_address": pd.DataFrame([
+        "tb_user": pd.DataFrame([
             {
                 "id": 1,
-                "region_id": 2,
-                "cep": "01001000",
-                "city": "SAO PAULO",
-                "state": "SP",
+                "name": "ANA",
+                "email": "ANA@EXEMPLO.COM",
             }
         ])
     }
@@ -116,9 +114,28 @@ def test_unique_table_insert_uses_on_conflict():
 
     statement = connection.statements[0][0]
 
-    assert "INSERT INTO tb_address" in statement
-    assert "ON CONFLICT (cep)" in statement
+    assert "INSERT INTO tb_user" in statement
+    assert "ON CONFLICT (email)" in statement
     assert "DO UPDATE SET" in statement
+
+
+def test_address_insert_does_not_use_cep_as_natural_key():
+    connection = FakeConnection()
+
+    dataframes = {
+        "tb_address": pd.DataFrame([
+            {"id": 1, "region_id": 2, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+            {"id": 2, "region_id": 2, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+        ])
+    }
+
+    _apply_upserts(connection, dataframes, {}, {})
+
+    assert len(connection.statements) == 2
+
+    for statement, _ in connection.statements:
+        assert "INSERT INTO tb_address" in statement
+        assert "ON CONFLICT" not in statement
 
 
 def test_property_insert_uses_on_conflict_name_address():
@@ -157,7 +174,7 @@ def test_insert_row_without_natural_key_is_plain_insert():
     assert "ON CONFLICT" not in statement
 
 
-def test_address_coordinates_are_not_overwritten_on_conflict():
+def test_address_insert_includes_coordinates():
     connection = FakeConnection()
     columns = ["cep", "city", "latitude", "longitude"]
     values = {"cep": "01001000", "city": "SAO PAULO", "latitude": -23.5, "longitude": -46.6}
@@ -165,12 +182,9 @@ def test_address_coordinates_are_not_overwritten_on_conflict():
     _insert_row(connection, "tb_address", columns, values)
 
     statement = connection.statements[0][0]
-    update_part = statement.split("DO UPDATE SET")[1]
 
-    assert "latitude" in statement.split("DO UPDATE SET")[0]
-    assert "city = EXCLUDED.city" in update_part
-    assert "latitude" not in update_part
-    assert "longitude" not in update_part
+    assert "latitude" in statement and "longitude" in statement
+    assert "ON CONFLICT" not in statement
 
 
 def test_address_coordinates_are_not_overwritten_on_update():

@@ -43,7 +43,6 @@ CREATE TABLE tb_address (
       CONSTRAINT chk_tb_address_latitude  CHECK (latitude  BETWEEN -90  AND 90)
     , longitude                     NUMERIC(9,6) NOT NULL
       CONSTRAINT chk_tb_address_longitude CHECK (longitude BETWEEN -180 AND 180)
-    , CONSTRAINT uq_tb_address_cep              UNIQUE (cep)
     , CONSTRAINT fk_tb_address_region           FOREIGN KEY (region_id)
         REFERENCES tb_region (id)
         ON DELETE RESTRICT

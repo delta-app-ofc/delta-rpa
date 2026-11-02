@@ -34,12 +34,14 @@ INSERT_ONLY_COLUMNS = {
 # Cada tabela aqui precisa ter, no banco novo, uma restrição UNIQUE
 # correspondente nessas mesmas colunas. Quando o mapa de ids ainda não conhece
 # um registro, o ON CONFLICT reconcilia pela chave natural em vez de duplicar.
+#
+# tb_address não entra aqui: o CEP não é único (vários endereços e imóveis podem
+# compartilhar o mesmo CEP). Endereços são identificados só pelo mapa de ids.
 UNIQUE_COLUMNS = {
     "tb_user": ["email"],
     "tb_region": ["name"],
     "tb_day_of_week": ["name"],
     "tb_habit": ["name"],
-    "tb_address": ["cep"],
     "tb_property": ["name", "address_id"],
     "tb_device": ["device_id"],
     "tb_user_property": ["user_id", "property_id"],

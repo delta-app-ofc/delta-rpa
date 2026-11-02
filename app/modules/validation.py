@@ -51,10 +51,6 @@ UNIQUE_COLUMNS = {
         ["email"]
     ],
 
-    "tb_address": [
-        ["cep"]
-    ],
-
     "tb_property": [
         ["name", "address_id"]
     ],
