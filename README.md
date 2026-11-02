@@ -32,10 +32,10 @@ O processo é executado de ponta a ponta pelo script `app/main.py`, que orquestr
    - Mapeamento pro id da tabela nova (ex.: `tb_property.classification` do legado, texto livre `RESIDENCIAL`/`COMERCIAL`, é convertido pro `classification_id` correspondente em `tb_property_classification` e a coluna é renomeada).
 4. **Carga** (`app/modules/load.py`)
    Sincroniza o banco novo com o legado, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`) e remapeando chaves estrangeiras (IDs antigos → novos):
-   - **Mapa de ids persistido**: `state/id_map.json` guarda, entre execuções, a relação `id_legado → id_novo` de cada tabela (`app/modules/state.py`).
+   - **Mapa de IDs transacional**: `tb_rpa_state.id_map` guarda a relação `id_legado → id_novo` de cada tabela no PostgreSQL. O mapa é confirmado na mesma transação das inserções, atualizações e exclusões. `state/id_map.json` é uma cópia auxiliar (`app/modules/state.py`).
    - **Inserção x atualização (upsert real)**: registro do legado que ainda não está no mapa de ids é **inserido**; registro que já está é **atualizado** em todas as colunas, pelo `id` do banco novo. Tabelas com chave natural usam `INSERT ... ON CONFLICT DO UPDATE` como rede de segurança contra duplicatas.
    - **Replicação de exclusão**: todo id que estava no mapa de ids e não veio mais na extração foi apagado no legado e é apagado no banco novo, na ordem inversa de `LOAD_PRIORITY`. O RPA nunca apaga nada no banco legado.
-   - Toda a carga (exclusões + inserções + atualizações) ocorre em uma única transação: em caso de falha, **rollback** completo e o mapa de ids não é regravado; em caso de sucesso, **commit** e o mapa de ids é atualizado.
+   - Toda a carga, incluindo o mapa no banco, ocorre em uma única transação: falhas antes do commit provocam **rollback** dos registros e do estado. A cópia JSON é atualizada depois; uma falha nessa cópia gera aviso e a próxima execução recupera o mapa do PostgreSQL.
 5. **Registro da execução**
    Cada execução grava uma linha na tabela `tb_log_rpa` do banco novo (`app/modules/execution_log.py`): início, fim, status, quantidade de registros inseridos/atualizados/excluídos e de erros de validação, e a mensagem de erro quando houver.
 Cada etapa gera logs estruturados (`app/modules/logs.py`), tanto em console quanto em arquivo (`logs/rpa_AAAA-MM-DD.log`).
@@ -64,7 +64,7 @@ delta-rpa/
 ├── test/
 │   ├── init-legacy/             # Scripts SQL para popular o banco legado (testes)
 │   └── init-new/                # Scripts SQL para popular o banco novo (testes)
-├── state/                       # Mapa de ids (state/id_map.json) — estado local, não versionado
+├── state/                       # Cópia auxiliar do mapa de IDs — não versionada
 ├── logs/                        # Logs gerados em tempo de execução
 ├── Dockerfile
 ├── docker-compose.test.yml      # Sobe bancos de teste + executa o RPA
@@ -143,4 +143,19 @@ Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, con
 
 Além do log em arquivo, cada execução grava uma linha na tabela `tb_log_rpa` do banco novo, com início, fim, status (`SUCCESS`/`ERROR`), quantidade de registros inseridos, atualizados e excluídos, quantidade de erros de validação e a mensagem de erro quando houver. O script de criação dessa tabela está em `test/init-new/01-schema.sql`.
 
-O mapa de ids usado entre execuções fica em `state/id_map.json` (estado local, não versionado).
+O mapa de IDs autoritativo fica em `tb_rpa_state`, uma tabela técnica com uma linha JSONB. Na primeira execução, o RPA cria a tabela e importa o `state/id_map.json` existente. O usuário do banco precisa de permissão de criação de tabela nessa ativação e de leitura/escrita na tabela nas execuções seguintes. Caso a equipe provisione a tabela previamente, as permissões de leitura e escrita são suficientes para seu uso.
+
+Um bloqueio transacional (`pg_advisory_xact_lock`) serializa as cargas do RPA no mesmo banco, impedindo que duas execuções carreguem um estado antigo ao mesmo tempo. O PostgreSQL libera esse bloqueio automaticamente no commit ou rollback.
+
+Depois da primeira ativação, o arquivo local pode estar ausente, antigo ou inválido: o estado confirmado no banco continua sendo usado, sem tratar CEP como identificador único. O RPA só grava o mapa local como cópia auxiliar. Se existem execuções anteriores registradas, mas nem o estado no banco nem um mapa JSON recuperável estão disponíveis nessa primeira ativação, a carga é interrompida antes das inserções; restaure o mapa da execução anterior para continuar com segurança.
+
+### Testes do estado transacional
+
+Os testes opcionais de integração usam um PostgreSQL local descartável chamado `rpa_state_test`:
+
+```powershell
+$env:RPA_TEST_DATABASE_URL='postgresql+psycopg2://postgres:rpa_test_only@127.0.0.1:57619/rpa_state_test'
+python -m pytest -q tests/test_database_state.py
+```
+
+Esses testes recriam apenas as tabelas do banco de teste indicado; o teste verifica explicitamente o host local e o nome `rpa_state_test`. Exercitam arquivo ausente, antigo ou corrompido, falha de disco após commit, rollback do mapa junto com os dados, importação do JSON antigo e serialização das cargas.

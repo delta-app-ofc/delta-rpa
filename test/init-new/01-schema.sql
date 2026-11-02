@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS tb_log_rpa           CASCADE;
+DROP TABLE IF EXISTS tb_rpa_state;
 DROP TABLE IF EXISTS tb_last_water_bill   CASCADE;
 DROP TABLE IF EXISTS tb_region_rate       CASCADE;
 DROP TABLE IF EXISTS tb_user_habit_day    CASCADE;

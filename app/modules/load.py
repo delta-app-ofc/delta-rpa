@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import text
 from database.connections import create_second_year_connection
 from modules.validation import FOREIGN_KEYS
-from modules.state import load_id_map, save_id_map
+from modules.state import load_database_id_map, save_database_id_map, save_id_map
 from modules.logs import (
     get_logger,
     log_load,
@@ -36,7 +36,7 @@ INSERT_ONLY_COLUMNS = {
 # um registro, o ON CONFLICT reconcilia pela chave natural em vez de duplicar.
 #
 # tb_address não entra aqui: o CEP não é único (vários endereços e imóveis podem
-# compartilhar o mesmo CEP). Endereços são identificados só pelo mapa de ids.
+# compartilhar o mesmo CEP). O mapa transacional de IDs identifica os endereços.
 UNIQUE_COLUMNS = {
     "tb_user": ["email"],
     "tb_region": ["name"],
@@ -356,12 +356,11 @@ def load_data(
         {tabela: {"inserted": n, "updated": n, "deleted": n}}
 
     Toda a carga (exclusões + inserções + atualizações) acontece em uma única
-    transação. Em caso de falha, é feito rollback e o mapa de ids não é
-    regravado.
+    transação, incluindo o mapa durável em tb_rpa_state. O JSON local é uma
+    cópia auxiliar, atualizada somente depois do commit.
     """
     logger = get_logger()
 
-    id_map = load_id_map()
     counts: dict[str, dict] = {}
 
     engine = create_second_year_connection()
@@ -371,6 +370,8 @@ def load_data(
         with engine.connect() as connection:
 
             with connection.begin():
+
+                id_map = load_database_id_map(connection)
 
                 _apply_deletions(
                     connection,
@@ -385,13 +386,18 @@ def load_data(
                     id_map,
                     counts
                 )
-
-        log_commit(logger)
-
-        save_id_map(id_map)
-
-        return counts
+                save_database_id_map(connection, id_map)
 
     except Exception:
         log_rollback(logger)
         raise
+
+    log_commit(logger)
+    try:
+        save_id_map(id_map)
+    except OSError as error:
+        logger.warning(
+            "Carga confirmada e mapa salvo no banco; a cópia JSON não foi atualizada: %s",
+            error,
+        )
+    return counts
