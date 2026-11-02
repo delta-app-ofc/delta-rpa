@@ -100,3 +100,34 @@ def test_formats_phone_as_brazilian_mask():
     result = transform_data(dataframes)["tb_user"]
 
     assert list(result["phone"]) == ["(11) 91155-1155", "(11) 3155-1155", "(11) 91155-1155"]
+
+
+def test_fills_coordinates_with_city_center():
+    dataframes = {
+        "tb_address": pd.DataFrame([
+            {"id": 1, "city": "sao paulo", "state": "sp", "region_id": 1},
+            {"id": 2, "city": "Brasília", "state": "df", "region_id": 1},
+        ])
+    }
+
+    result = transform_data(dataframes)["tb_address"]
+
+    assert result.loc[0, "latitude"] == -23.550520
+    assert result.loc[0, "longitude"] == -46.633308
+    assert result.loc[1, "latitude"] == -15.794200
+
+
+def test_unknown_city_uses_sao_paulo_coordinates_and_keeps_existing_ones():
+    dataframes = {
+        "tb_address": pd.DataFrame([
+            {"id": 1, "city": "cidade nova", "state": "sp", "region_id": 1},
+            {"id": 2, "city": "lins", "state": "sp", "region_id": 1,
+             "latitude": -1.5, "longitude": -2.5},
+        ])
+    }
+
+    result = transform_data(dataframes)["tb_address"]
+
+    assert result.loc[0, "latitude"] == -23.550520
+    assert result.loc[1, "latitude"] == -1.5
+    assert result.loc[1, "longitude"] == -2.5

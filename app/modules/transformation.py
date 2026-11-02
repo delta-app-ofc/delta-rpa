@@ -1,3 +1,5 @@
+import unicodedata
+
 import pandas as pd
 from argon2 import PasswordHasher
 
@@ -11,9 +13,29 @@ _PASSWORD_HASHER = PasswordHasher(
     salt_len=16
 )
 
+# O banco do primeiro ano não guarda latitude/longitude, mas tb_address no banco
+# novo exige as duas (NOT NULL). Sem serviço externo, usamos o centro da cidade.
+# Cidades fora da lista caem no centro de São Paulo (DEFAULT_COORDINATES).
+CITY_COORDINATES = {
+    "SAO PAULO": (-23.550520, -46.633308),
+    "GUARULHOS": (-23.453800, -46.533300),
+    "OSASCO": (-23.532900, -46.791700),
+    "BRAGANCA PAULISTA": (-22.952700, -46.541900),
+    "PRESIDENTE PRUDENTE": (-22.120700, -51.392500),
+    "ADAMANTINA": (-21.682000, -51.068900),
+    "LINS": (-21.678600, -49.742400),
+    "CURITIBA": (-25.428400, -49.273300),
+    "PORTO ALEGRE": (-30.034600, -51.217700),
+    "BRASILIA": (-15.794200, -47.882200)
+}
+
+DEFAULT_COORDINATES = CITY_COORDINATES["SAO PAULO"]
+
 TRANSFORMATIONS = {
 
     "tb_address": {
+        "coordinates": True,
+
         "uppercase": [
             "city",
             "state"
@@ -75,6 +97,48 @@ TRANSFORMATIONS = {
         ]
     }
 }
+
+
+def _normalize_city(city) -> str:
+    """Tira acentos e deixa em maiúsculas para casar com CITY_COORDINATES."""
+    text = unicodedata.normalize("NFKD", str(city))
+    text = "".join(char for char in text if not unicodedata.combining(char))
+
+    return text.strip().upper()
+
+
+def _transform_coordinates(
+    dataframe: pd.DataFrame
+):
+    """
+    Preenche latitude e longitude pelo centro da cidade quando vierem vazias.
+
+    Valores já preenchidos no legado são mantidos.
+    """
+    dataframe = dataframe.copy()
+
+    if "city" not in dataframe.columns:
+        return dataframe
+
+    for column in ("latitude", "longitude"):
+        if column not in dataframe.columns:
+            dataframe[column] = None
+
+        dataframe[column] = dataframe[column].astype("object")
+
+    for index, city in dataframe["city"].items():
+        latitude, longitude = CITY_COORDINATES.get(
+            _normalize_city(city),
+            DEFAULT_COORDINATES
+        )
+
+        if pd.isna(dataframe.at[index, "latitude"]):
+            dataframe.at[index, "latitude"] = latitude
+
+        if pd.isna(dataframe.at[index, "longitude"]):
+            dataframe.at[index, "longitude"] = longitude
+
+    return dataframe
 
 
 def _transform_uppercase(
@@ -234,6 +298,9 @@ def _transform_table(
     )
 
     transformed = dataframe.copy()
+
+    if rules.get("coordinates"):
+        transformed = _transform_coordinates(transformed)
 
     transformed = _transform_uppercase(
         transformed,
