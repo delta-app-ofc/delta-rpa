@@ -1,9 +1,27 @@
-# Delta - RPA
- 
+# Delta · RPA de Migração
+
+![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-origem%20e%20destino-356ce0?logo=postgresql&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-ETL-150458?logo=pandas&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-conexões-9dbdff)
+![Docker](https://img.shields.io/badge/Docker-testes%20de%20integração-2496ed?logo=docker&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-testes%20unitários-0a9edc?logo=pytest&logoColor=white)
+
+O robô que leva os dados do passado para o futuro, sem derramar nenhuma gota. O `delta-rpa` copia, confere e organiza as informações do banco legado do Primeiro Ano para o novo banco normalizado do Segundo Ano do **Projeto Delta**. As alterações da etapa de carga no banco novo são feitas em uma transação. Se a carga falhar antes do commit, ocorre rollback e o erro é registrado. A gravação do mapa de IDs acontece depois do commit e não faz parte dessa transação.
+
+**Tags:** `rpa` · `etl` · `python` · `postgresql` · `pandas` · `sqlalchemy` · `data-migration` · `data-validation` · `docker` · `pytest` · `github-actions`
+
 RPA (Robotic Process Automation) responsável por orquestrar a **migração de dados entre o banco legado (Primeiro Ano) e o novo banco normalizado (Segundo Ano)**, garantindo a integridade dos dados e tratando falhas durante o processo de carga.
- 
+
 O projeto implementa um pipeline **ETL (Extract, Transform, Load)** com uma etapa adicional de **validação**, aplicando regras de negócio antes de mover os dados para o banco de destino.
- 
+
+## Requisito atendido
+
+Este repositório é a evidência do requisito **MOD-04** (orquestrar RPA para mover dados do banco legado ao novo normalizado, garantindo integridade e tratamento de falhas de carga).
+
+- [Justificativa do requisito MOD-04](https://github.com/delta-app-ofc/delta-handbook/blob/docs/explicacao-requisitos/DADOS/SQL/documenta%C3%A7%C3%A3o-requisitos/mod-04-rpa-migracao-banco-legado.md)
+- [Orquestração principal](app/main.py)
+- [README que reúne todos os requisitos de modelagem](https://github.com/delta-app-ofc/delta-sql-database/blob/docs/readme-modelagem/README.md)
 
 ## Visão geral
  
