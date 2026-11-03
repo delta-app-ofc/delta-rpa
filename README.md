@@ -1,9 +1,11 @@
 # Delta · RPA de migração PostgreSQL
 
-![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-2496ED?logo=docker&logoColor=white)
-![ETL](https://img.shields.io/badge/Pipeline-ETL%20com%20valida%C3%A7%C3%A3o-2E8B57)
+![Python](https://img.shields.io/badge/Python-3.12-3776ab?logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-origem%20e%20destino-356ce0?logo=postgresql&logoColor=white)
+![Pandas](https://img.shields.io/badge/Pandas-ETL-150458?logo=pandas&logoColor=white)
+![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-conexões-9dbdff)
+![Docker](https://img.shields.io/badge/Docker-testes%20de%20integração-2496ed?logo=docker&logoColor=white)
+![Pytest](https://img.shields.io/badge/Pytest-testes%20unitários-0a9edc?logo=pytest&logoColor=white)
 
 `delta-rpa` migra dados do banco legado do Primeiro Ano para o banco normalizado do Segundo Ano. O pipeline ETL extrai, valida, transforma e carrega os registros, mantendo as chaves relacionadas e registrando cada execução.
 
