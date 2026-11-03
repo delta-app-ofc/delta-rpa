@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS tb_log_rpa           CASCADE;
+DROP TABLE IF EXISTS tb_rpa_state;
 DROP TABLE IF EXISTS tb_last_water_bill   CASCADE;
 DROP TABLE IF EXISTS tb_region_rate       CASCADE;
 DROP TABLE IF EXISTS tb_user_habit_day    CASCADE;
@@ -39,7 +40,10 @@ CREATE TABLE tb_address (
       CONSTRAINT chk_tb_address_cep CHECK      (cep ~ '^[0-9]{8}$')
     , city                          VARCHAR(60) NOT NULL
     , state                         VARCHAR(30) NOT NULL
-    , CONSTRAINT uq_tb_address_cep              UNIQUE (cep)
+    , latitude                      NUMERIC(8,6) NOT NULL
+      CONSTRAINT chk_tb_address_latitude  CHECK (latitude  BETWEEN -90  AND 90)
+    , longitude                     NUMERIC(9,6) NOT NULL
+      CONSTRAINT chk_tb_address_longitude CHECK (longitude BETWEEN -180 AND 180)
     , CONSTRAINT fk_tb_address_region           FOREIGN KEY (region_id)
         REFERENCES tb_region (id)
         ON DELETE RESTRICT
@@ -154,8 +158,6 @@ CREATE TABLE tb_user_habit (
     , frequency             INTEGER     NOT NULL
       CONSTRAINT chk_tb_user_habit_frequency
           CHECK (frequency > 0)
-    , CONSTRAINT uq_tb_user_habit_user_habit
-        UNIQUE (user_id, habit_id)
     , CONSTRAINT fk_tb_user_habit_user
         FOREIGN KEY (user_id)
         REFERENCES tb_user (id)

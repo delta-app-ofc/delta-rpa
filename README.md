@@ -38,19 +38,32 @@
 O RPA conecta-se ao banco legado pelas variáveis `FIRST_YEAR_*` e ao banco novo pelas variáveis `SECOND_YEAR_*`. O script `app/main.py` orquestra as etapas e registra seus resultados.
 
 ## Como funciona o pipeline
-
-1. **Extração** (`app/modules/extraction.py`): lê as tabelas permitidas em `ALLOWED_TABLES` com `pandas.read_sql` e retorna um dicionário de DataFrames.
-2. **Validação** (`app/modules/validation.py`): aplica as regras definidas em `RULES`, `UNIQUE_COLUMNS` e `FOREIGN_KEYS`, como idade mínima, valores permitidos, datas mensais, unicidade e integridade referencial. Registros válidos seguem para a transformação; os demais são reportados.
-3. **Transformação** (`app/modules/transformation.py`): normaliza dados conforme `TRANSFORMATIONS`, incluindo conversão para maiúsculas, substituição de valores e mapeamento de IDs do esquema novo.
-4. **Carga** (`app/modules/load.py`): processa tabelas conforme `LOAD_PRIORITY`, remapeia chaves estrangeiras e sincroniza inserções, atualizações e exclusões no destino.
-   - `state/id_map.json` mantém a relação entre IDs antigos e novos.
-   - Registros existentes são atualizados; novos registros são inseridos.
-   - IDs removidos da origem são excluídos do destino, em ordem inversa de dependência.
-   - A carga usa uma transação: sucesso confirma as alterações e atualiza o mapa de IDs; falha executa rollback.
-5. **Registro da execução** (`app/modules/execution_log.py`): grava em `tb_log_rpa` o início, o fim, o status, as quantidades processadas, os erros de validação e a mensagem de erro, quando houver.
-
-Cada etapa também gera logs estruturados no console e em `logs/rpa_AAAA-MM-DD.log`.
-
+ 
+1. **Extração** (`app/modules/extraction.py`)
+   Lê as tabelas permitidas (`ALLOWED_TABLES`) do banco legado via `pandas.read_sql`, retornando um dicionário `{tabela: DataFrame}`.
+2. **Validação** (`app/modules/validation.py`)
+   Aplica regras de negócio configuradas em `RULES`, `UNIQUE_COLUMNS` e `FOREIGN_KEYS`, entre elas:
+   - Idade mínima (ex.: usuário maior de 18 anos);
+   - Valores permitidos em determinadas colunas (ex.: `tb_property.type` deve ser `CASA` ou `APARTAMENTO`);
+   - Datas que devem representar o primeiro dia do mês (ex.: `tb_last_water_bill.month`);
+   - Duplicidade de registros (restrições `UNIQUE`);
+   - Integridade referencial (chaves estrangeiras) entre as tabelas já validadas.
+   Registros inválidos são removidos do conjunto de dados e reportados; os registros válidos seguem para a próxima etapa.
+3. **Transformação** (`app/modules/transformation.py`)
+   Normaliza os dados válidos conforme regras em `TRANSFORMATIONS`, como:
+   - Conversão de colunas para maiúsculas (ex.: `name`, `email`, `city`, `state`);
+   - Substituição de valores (ex.: `APARTAMENTO` → `PRÉDIO` em `tb_property.type`);
+   - Mapeamento pro id da tabela nova (ex.: `tb_property.classification` do legado, texto livre `RESIDENCIAL`/`COMERCIAL`, é convertido pro `classification_id` correspondente em `tb_property_classification` e a coluna é renomeada).
+4. **Carga** (`app/modules/load.py`)
+   Sincroniza o banco novo com o legado, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`) e remapeando chaves estrangeiras (IDs antigos → novos):
+   - **Mapa de IDs transacional**: `tb_rpa_state.id_map` guarda a relação `id_legado → id_novo` de cada tabela no PostgreSQL. O mapa é confirmado na mesma transação das inserções, atualizações e exclusões. `state/id_map.json` é uma cópia auxiliar (`app/modules/state.py`).
+   - **Inserção x atualização (upsert real)**: registro do legado que ainda não está no mapa de ids é **inserido**; registro que já está é **atualizado** em todas as colunas, pelo `id` do banco novo. Tabelas com chave natural usam `INSERT ... ON CONFLICT DO UPDATE` como rede de segurança contra duplicatas.
+   - **Replicação de exclusão**: todo id que estava no mapa de ids e não veio mais na extração foi apagado no legado e é apagado no banco novo, na ordem inversa de `LOAD_PRIORITY`. O RPA nunca apaga nada no banco legado.
+   - Toda a carga, incluindo o mapa no banco, ocorre em uma única transação: falhas antes do commit provocam **rollback** dos registros e do estado. A cópia JSON é atualizada depois; uma falha nessa cópia gera aviso e a próxima execução recupera o mapa do PostgreSQL.
+5. **Registro da execução**
+   Cada execução grava uma linha na tabela `tb_log_rpa` do banco novo (`app/modules/execution_log.py`): início, fim, status, quantidade de registros inseridos/atualizados/excluídos e de erros de validação, e a mensagem de erro quando houver.
+Cada etapa gera logs estruturados (`app/modules/logs.py`), tanto em console quanto em arquivo (`logs/rpa_AAAA-MM-DD.log`).
+ 
 ## Estrutura do projeto
 
 ```text
@@ -65,6 +78,21 @@ delta-rpa/
 │   └── modules/
 │       ├── extraction.py        # Extração do banco legado
 │       ├── validation.py        # Regras de validação e integridade
+│       ├── transformation.py    # Regras de transformação/normalização
+│       ├── load.py              # Carga no banco novo (upsert + exclusão + transação)
+│       ├── state.py             # Mapa de ids persistido entre execuções
+│       ├── execution_log.py     # Registro de cada execução em tb_log_rpa
+│       └── logs.py              # Configuração e helpers de logging
+├── tests/
+│   ├── test_validation.py
+│   ├── test_transformation.py
+│   ├── test_load.py
+│   └── test_state.py
+├── test/
+│   ├── init-legacy/             # Scripts SQL para popular o banco legado (testes)
+│   └── init-new/                # Scripts SQL para popular o banco novo (testes)
+├── state/                       # Cópia auxiliar do mapa de IDs — não versionada
+├── logs/                        # Logs gerados em tempo de execução
 │       ├── transformation.py    # Transformação e normalização
 │       ├── load.py              # Carga no banco novo
 │       ├── state.py             # Mapa de IDs entre execuções
@@ -143,5 +171,21 @@ O mapa de IDs entre execuções fica em `state/id_map.json`, mantido localmente.
 
 ## Referências relacionadas
 
+O mapa de IDs autoritativo fica em `tb_rpa_state`, uma tabela técnica com uma linha JSONB. Na primeira execução, o RPA cria a tabela e importa o `state/id_map.json` existente. O usuário do banco precisa de permissão de criação de tabela nessa ativação e de leitura/escrita na tabela nas execuções seguintes. Caso a equipe provisione a tabela previamente, as permissões de leitura e escrita são suficientes para seu uso.
+
+Um bloqueio transacional (`pg_advisory_xact_lock`) serializa as cargas do RPA no mesmo banco, impedindo que duas execuções carreguem um estado antigo ao mesmo tempo. O PostgreSQL libera esse bloqueio automaticamente no commit ou rollback.
+
+Depois da primeira ativação, o arquivo local pode estar ausente, antigo ou inválido: o estado confirmado no banco continua sendo usado, sem tratar CEP como identificador único. O RPA só grava o mapa local como cópia auxiliar. Se existem execuções anteriores registradas, mas nem o estado no banco nem um mapa JSON recuperável estão disponíveis nessa primeira ativação, a carga é interrompida antes das inserções; restaure o mapa da execução anterior para continuar com segurança.
+
+### Testes do estado transacional
+
+Os testes opcionais de integração usam um PostgreSQL local descartável chamado `rpa_state_test`:
+
+```powershell
+$env:RPA_TEST_DATABASE_URL='postgresql+psycopg2://postgres:rpa_test_only@127.0.0.1:57619/rpa_state_test'
+python -m pytest -q tests/test_database_state.py
+```
+
+Esses testes recriam apenas as tabelas do banco de teste indicado; o teste verifica explicitamente o host local e o nome `rpa_state_test`. Exercitam arquivo ausente, antigo ou corrompido, falha de disco após commit, rollback do mapa junto com os dados, importação do JSON antigo e serialização das cargas.
 - [delta-handbook](https://github.com/delta-app-ofc/delta-handbook) — convenções de desenvolvimento e documentação das regras de negócio.
 - [delta-sql-database](https://github.com/delta-app-ofc/delta-sql-database) — scripts do banco PostgreSQL normalizado.

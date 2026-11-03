@@ -51,10 +51,6 @@ UNIQUE_COLUMNS = {
         ["email"]
     ],
 
-    "tb_address": [
-        ["cep"]
-    ],
-
     "tb_property": [
         ["name", "address_id"]
     ],
@@ -65,10 +61,6 @@ UNIQUE_COLUMNS = {
 
     "tb_device": [
         ["device_id"]
-    ],
-
-    "tb_user_habit": [
-        ["user_id", "habit_id"]
     ],
 
     "tb_user_habit_day": [

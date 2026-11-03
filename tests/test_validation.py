@@ -3,6 +3,20 @@ import pandas as pd
 from modules.validation import validate_data
 
 
+def test_accepts_repeated_habits_for_the_same_user():
+    dataframes = {
+        "tb_user_habit": pd.DataFrame([
+            {"id": 1, "user_id": 10, "habit_id": 2, "frequency": 3},
+            {"id": 2, "user_id": 10, "habit_id": 2, "frequency": 3},
+        ])
+    }
+
+    result = validate_data(dataframes)
+
+    assert result["valid"]["tb_user_habit"]["id"].tolist() == [1, 2]
+    assert "tb_user_habit" not in result["errors"]
+
+
 def test_rejects_underage_user():
     dataframes = {
         "tb_user": pd.DataFrame([
@@ -100,3 +114,16 @@ def test_invalid_foreign_key_is_reported():
 
     assert "foreign_keys" in result["errors"]
     assert (result["errors"]["foreign_keys"]["column"] == "user_id").any()
+
+def test_accepts_repeated_cep_in_addresses():
+    dataframes = {
+        "tb_address": pd.DataFrame([
+            {"id": 1, "region_id": 1, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+            {"id": 2, "region_id": 1, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+        ])
+    }
+
+    result = validate_data(dataframes)
+
+    assert len(result["valid"]["tb_address"]) == 2
+    assert "tb_address" not in result["errors"]

@@ -48,7 +48,9 @@ def test_load_data_saves_id_map_only_after_transaction_commits(monkeypatch):
     id_map = {"tb_user": {1: 100}}
     saved = []
     monkeypatch.setattr(load, "get_logger", lambda: logging.getLogger("load-test"))
-    monkeypatch.setattr(load, "load_id_map", lambda: id_map)
+    monkeypatch.setattr(load, "load_database_id_map", lambda connection: id_map)
+    database_saves = []
+    monkeypatch.setattr(load, "save_database_id_map", lambda connection, mapping: database_saves.append(connection.transaction.committed))
     monkeypatch.setattr(load, "create_second_year_connection", lambda: engine)
     monkeypatch.setattr(load, "_apply_deletions", lambda *args: None)
 
@@ -76,12 +78,15 @@ def test_load_data_saves_id_map_only_after_transaction_commits(monkeypatch):
     assert engine.connection.transaction.committed is True
     assert engine.connection.transaction.rolled_back is False
     assert saved == [({"tb_user": {1: 100, 2: 101}}, True)]
+    assert database_saves == [False]
 
 
 def test_load_data_rolls_back_and_does_not_save_id_map_on_failure(monkeypatch):
     engine = FakeEngine()
     monkeypatch.setattr(load, "get_logger", lambda: logging.getLogger("load-test"))
-    monkeypatch.setattr(load, "load_id_map", lambda: {"tb_user": {1: 100}})
+    monkeypatch.setattr(load, "load_database_id_map", lambda connection: {"tb_user": {1: 100}})
+    database_saves = []
+    monkeypatch.setattr(load, "save_database_id_map", lambda *args: database_saves.append(True))
     monkeypatch.setattr(load, "create_second_year_connection", lambda: engine)
     monkeypatch.setattr(load, "_apply_deletions", lambda *args: None)
     monkeypatch.setattr(
@@ -99,6 +104,25 @@ def test_load_data_rolls_back_and_does_not_save_id_map_on_failure(monkeypatch):
     assert engine.connection.transaction.rolled_back is True
     assert saved == []
     assert rollback_logs == [True]
+    assert database_saves == []
+
+
+def test_cache_failure_after_commit_does_not_report_rollback(monkeypatch):
+    engine = FakeEngine()
+    monkeypatch.setattr(load, "get_logger", lambda: logging.getLogger("load-test"))
+    monkeypatch.setattr(load, "create_second_year_connection", lambda: engine)
+    monkeypatch.setattr(load, "load_database_id_map", lambda connection: {})
+    monkeypatch.setattr(load, "save_database_id_map", lambda *args: None)
+    monkeypatch.setattr(load, "_apply_deletions", lambda *args: None)
+    monkeypatch.setattr(load, "_apply_upserts", lambda *args: None)
+    monkeypatch.setattr(load, "save_id_map", lambda mapping: (_ for _ in ()).throw(OSError("disk full")))
+    rollback_logs = []
+    monkeypatch.setattr(load, "log_rollback", lambda logger: rollback_logs.append(True))
+    monkeypatch.setattr(load, "log_commit", lambda logger: None)
+
+    assert load.load_data({}) == {}
+    assert engine.connection.transaction.committed
+    assert rollback_logs == []
 
 
 def test_foreign_keys_are_translated_when_a_reference_map_exists():

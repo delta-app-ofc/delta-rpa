@@ -2,7 +2,7 @@ import pandas as pd
 from sqlalchemy import text
 from database.connections import create_second_year_connection
 from modules.validation import FOREIGN_KEYS
-from modules.state import load_id_map, save_id_map
+from modules.state import load_database_id_map, save_database_id_map, save_id_map
 from modules.logs import (
     get_logger,
     log_load,
@@ -22,24 +22,35 @@ LOAD_PRIORITY = [
     "tb_last_water_bill"
 ]
 
+# Colunas que o RPA só grava na primeira carga. O legado não tem esses dados e o
+# RPA gera um valor aproximado, então reexecuções não podem sobrescrever o que já
+# está no banco novo (por exemplo, uma coordenada corrigida manualmente).
+INSERT_ONLY_COLUMNS = {
+    "tb_address": ["latitude", "longitude"]
+}
+
 # Chaves naturais (colunas únicas) usadas no INSERT ... ON CONFLICT.
 #
 # Cada tabela aqui precisa ter, no banco novo, uma restrição UNIQUE
 # correspondente nessas mesmas colunas. Quando o mapa de ids ainda não conhece
 # um registro, o ON CONFLICT reconcilia pela chave natural em vez de duplicar.
+#
+# tb_address não entra aqui: o CEP não é único (vários endereços e imóveis podem
+# compartilhar o mesmo CEP). O mapa transacional de IDs identifica os endereços.
 UNIQUE_COLUMNS = {
     "tb_user": ["email"],
     "tb_region": ["name"],
     "tb_day_of_week": ["name"],
     "tb_habit": ["name"],
-    "tb_address": ["cep"],
     "tb_property": ["name", "address_id"],
     "tb_device": ["device_id"],
     "tb_user_property": ["user_id", "property_id"],
-    "tb_user_habit": ["user_id", "habit_id"],
     "tb_user_habit_day": ["user_habit_id", "day_of_week_id"],
     "tb_last_water_bill": ["user_id", "month"]
 }
+
+# tb_user_habit permite várias ocorrências do mesmo hábito por usuário.
+# Cada ocorrência é identificada pelo próprio id, preservado no mapa de ids.
 
 
 def _empty_counts() -> dict:
@@ -104,6 +115,13 @@ def _replace_foreign_keys(
     return dataframe
 
 
+def _updatable_columns(table: str, columns: list) -> list:
+    """Colunas que podem ser atualizadas (tira as que são só da primeira carga)."""
+    insert_only = INSERT_ONLY_COLUMNS.get(table, [])
+
+    return [column for column in columns if column not in insert_only]
+
+
 def _insert_row(
     connection,
     table: str,
@@ -127,7 +145,7 @@ def _insert_row(
 
         update_columns = ", ".join(
             f"{column} = EXCLUDED.{column}"
-            for column in columns
+            for column in _updatable_columns(table, columns)
         )
 
         query = text(
@@ -167,7 +185,7 @@ def _update_row(
     """
     assignments = ", ".join(
         f"{column} = :{column}"
-        for column in columns
+        for column in _updatable_columns(table, columns)
     )
 
     query = text(
@@ -338,12 +356,11 @@ def load_data(
         {tabela: {"inserted": n, "updated": n, "deleted": n}}
 
     Toda a carga (exclusões + inserções + atualizações) acontece em uma única
-    transação. Em caso de falha, é feito rollback e o mapa de ids não é
-    regravado.
+    transação, incluindo o mapa durável em tb_rpa_state. O JSON local é uma
+    cópia auxiliar, atualizada somente depois do commit.
     """
     logger = get_logger()
 
-    id_map = load_id_map()
     counts: dict[str, dict] = {}
 
     engine = create_second_year_connection()
@@ -353,6 +370,8 @@ def load_data(
         with engine.connect() as connection:
 
             with connection.begin():
+
+                id_map = load_database_id_map(connection)
 
                 _apply_deletions(
                     connection,
@@ -367,13 +386,18 @@ def load_data(
                     id_map,
                     counts
                 )
-
-        log_commit(logger)
-
-        save_id_map(id_map)
-
-        return counts
+                save_database_id_map(connection, id_map)
 
     except Exception:
         log_rollback(logger)
         raise
+
+    log_commit(logger)
+    try:
+        save_id_map(id_map)
+    except OSError as error:
+        logger.warning(
+            "Carga confirmada e mapa salvo no banco; a cópia JSON não foi atualizada: %s",
+            error,
+        )
+    return counts

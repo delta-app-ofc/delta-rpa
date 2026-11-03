@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from modules import load
-from modules.load import _apply_deletions, _apply_upserts, _insert_row
+from modules.load import _apply_deletions, _apply_upserts, _insert_row, _update_row
 
 
 class _FakeResult:
@@ -101,13 +101,11 @@ def test_unique_table_insert_uses_on_conflict():
     connection = FakeConnection()
 
     dataframes = {
-        "tb_address": pd.DataFrame([
+        "tb_user": pd.DataFrame([
             {
                 "id": 1,
-                "region_id": 2,
-                "cep": "01001000",
-                "city": "SAO PAULO",
-                "state": "SP",
+                "name": "ANA",
+                "email": "ANA@EXEMPLO.COM",
             }
         ])
     }
@@ -116,9 +114,28 @@ def test_unique_table_insert_uses_on_conflict():
 
     statement = connection.statements[0][0]
 
-    assert "INSERT INTO tb_address" in statement
-    assert "ON CONFLICT (cep)" in statement
+    assert "INSERT INTO tb_user" in statement
+    assert "ON CONFLICT (email)" in statement
     assert "DO UPDATE SET" in statement
+
+
+def test_address_insert_does_not_use_cep_as_natural_key():
+    connection = FakeConnection()
+
+    dataframes = {
+        "tb_address": pd.DataFrame([
+            {"id": 1, "region_id": 2, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+            {"id": 2, "region_id": 2, "cep": "01001000", "city": "SAO PAULO", "state": "SP"},
+        ])
+    }
+
+    _apply_upserts(connection, dataframes, {}, {})
+
+    assert len(connection.statements) == 2
+
+    for statement, _ in connection.statements:
+        assert "INSERT INTO tb_address" in statement
+        assert "ON CONFLICT" not in statement
 
 
 def test_property_insert_uses_on_conflict_name_address():
@@ -155,6 +172,70 @@ def test_insert_row_without_natural_key_is_plain_insert():
 
     assert "INSERT INTO tb_sem_chave" in statement
     assert "ON CONFLICT" not in statement
+
+
+def test_address_insert_includes_coordinates():
+    connection = FakeConnection()
+    columns = ["cep", "city", "latitude", "longitude"]
+    values = {"cep": "01001000", "city": "SAO PAULO", "latitude": -23.5, "longitude": -46.6}
+
+    _insert_row(connection, "tb_address", columns, values)
+
+    statement = connection.statements[0][0]
+
+    assert "latitude" in statement and "longitude" in statement
+    assert "ON CONFLICT" not in statement
+
+
+def test_address_coordinates_are_not_overwritten_on_update():
+    connection = FakeConnection()
+    columns = ["cep", "city", "latitude", "longitude"]
+    values = {"cep": "01001000", "city": "SAO PAULO", "latitude": -23.5, "longitude": -46.6}
+
+    _update_row(connection, "tb_address", columns, values, 7)
+
+    statement = connection.statements[0][0]
+
+    assert "city = :city" in statement
+    assert "latitude" not in statement
+    assert "longitude" not in statement
+
+
+def test_repeated_habits_keep_separate_ids_and_update_on_next_run():
+    connection = FakeConnection()
+    id_map = {"tb_user": {10: 100}}
+    habits = pd.DataFrame([
+        {"id": 1, "user_id": 10, "habit_id": 2, "frequency": 3},
+        {"id": 2, "user_id": 10, "habit_id": 2, "frequency": 3},
+    ])
+    days = pd.DataFrame([
+        {"id": 7, "user_habit_id": 1, "day_of_week_id": 1},
+        {"id": 8, "user_habit_id": 2, "day_of_week_id": 1},
+    ])
+    dataframes = {"tb_user_habit": habits, "tb_user_habit_day": days}
+    counts = {}
+
+    _apply_upserts(connection, dataframes, id_map, counts)
+
+    assert id_map["tb_user_habit"] == {1: 1001, 2: 1002}
+    assert counts["tb_user_habit"] == {"inserted": 2, "updated": 0, "deleted": 0}
+    for statement, parameters in connection.statements[:2]:
+        assert "INSERT INTO tb_user_habit " in statement
+        assert "ON CONFLICT" not in statement
+        assert parameters["user_id"] == 100
+    assert connection.statements[2][1]["user_habit_id"] == 1001
+    assert connection.statements[3][1]["user_habit_id"] == 1002
+
+    connection.statements.clear()
+    habits.loc[0, "frequency"] = 6
+    counts = {}
+    _apply_upserts(connection, dataframes, id_map, counts)
+
+    assert counts["tb_user_habit"] == {"inserted": 0, "updated": 2, "deleted": 0}
+    assert all("INSERT" not in sql for sql in _sql_list(connection))
+    assert connection.statements[0][1]["target_id"] == 1001
+    assert connection.statements[0][1]["frequency"] == 6
+    assert connection.statements[1][1]["target_id"] == 1002
 
 
 # --------------------------------------------------------------------------- #
