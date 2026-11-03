@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   tests:
-    name: Testes e relatórios
+    name: Testes Sonar
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
