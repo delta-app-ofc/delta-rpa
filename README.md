@@ -4,11 +4,8 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker%20Compose-v2-2496ED?logo=docker&logoColor=white)
 ![ETL](https://img.shields.io/badge/Pipeline-ETL%20com%20valida%C3%A7%C3%A3o-2E8B57)
- 
-RPA (Robotic Process Automation) responsável por orquestrar a **migração de dados entre o banco legado (Primeiro Ano) e o novo banco normalizado (Segundo Ano)**, garantindo a integridade dos dados e tratando falhas durante o processo de carga.
- 
-O projeto implementa um pipeline **ETL (Extract, Transform, Load)** com uma etapa adicional de **validação**, aplicando regras de negócio antes de mover os dados para o banco de destino.
- 
+
+`delta-rpa` migra dados do banco legado do Primeiro Ano para o banco normalizado do Segundo Ano. O pipeline ETL extrai, valida, transforma e carrega os registros, mantendo as chaves relacionadas e registrando cada execução.
 
 **Tags:** `rpa` · `etl` · `migração-de-dados` · `postgresql` · `python` · `pandas` · `sqlalchemy` · `docker-compose`
 
@@ -35,98 +32,66 @@ O projeto implementa um pipeline **ETL (Extract, Transform, Load)** com uma etap
 | Sincronização | Remapeamento de IDs, inserções, atualizações e exclusões no destino dentro de uma transação. |
 | Estado e auditoria | Mapa de IDs entre execuções, logs locais e registro em `tb_log_rpa` no banco novo. |
 | Ambiente de teste | Compose com PostgreSQL 16 e dados de fixture; instruções em [`DOCKER-HELP.md`](DOCKER-HELP.md). |
- 
-O `delta-rpa` conecta-se a dois bancos PostgreSQL:
- 
-- **Banco do Primeiro Ano** (`FIRST_YEAR_*`): base legada, de onde os dados são extraídos.
-- **Banco do Segundo Ano** (`SECOND_YEAR_*`): base normalizada, para onde os dados válidos e transformados são carregados.
-O processo é executado de ponta a ponta pelo script `app/main.py`, que orquestra as quatro etapas do pipeline (extração, validação, transformação e carga) e registra cada etapa em log.
- 
+
+O RPA conecta-se ao banco legado pelas variáveis `FIRST_YEAR_*` e ao banco novo pelas variáveis `SECOND_YEAR_*`. O script `app/main.py` orquestra as etapas e registra seus resultados.
+
 ## Como funciona o pipeline
- 
-1. **Extração** (`app/modules/extraction.py`)
-   Lê as tabelas permitidas (`ALLOWED_TABLES`) do banco legado via `pandas.read_sql`, retornando um dicionário `{tabela: DataFrame}`.
-2. **Validação** (`app/modules/validation.py`)
-   Aplica regras de negócio configuradas em `RULES`, `UNIQUE_COLUMNS` e `FOREIGN_KEYS`, entre elas:
-   - Idade mínima (ex.: usuário maior de 18 anos);
-   - Valores permitidos em determinadas colunas (ex.: `tb_property.type` deve ser `CASA` ou `APARTAMENTO`);
-   - Datas que devem representar o primeiro dia do mês (ex.: `tb_last_water_bill.month`);
-   - Duplicidade de registros (restrições `UNIQUE`);
-   - Integridade referencial (chaves estrangeiras) entre as tabelas já validadas.
-   Registros inválidos são removidos do conjunto de dados e reportados; os registros válidos seguem para a próxima etapa.
-3. **Transformação** (`app/modules/transformation.py`)
-   Normaliza os dados válidos conforme regras em `TRANSFORMATIONS`, como:
-   - Conversão de colunas para maiúsculas (ex.: `name`, `email`, `city`, `state`);
-   - Substituição de valores (ex.: `APARTAMENTO` → `PRÉDIO` em `tb_property.type`);
-   - Mapeamento pro id da tabela nova (ex.: `tb_property.classification` do legado, texto livre `RESIDENCIAL`/`COMERCIAL`, é convertido pro `classification_id` correspondente em `tb_property_classification` e a coluna é renomeada).
-4. **Carga** (`app/modules/load.py`)
-   Sincroniza o banco novo com o legado, respeitando a ordem de dependência das tabelas (`LOAD_PRIORITY`) e remapeando chaves estrangeiras (IDs antigos → novos):
-   - **Mapa de ids persistido**: `state/id_map.json` guarda, entre execuções, a relação `id_legado → id_novo` de cada tabela (`app/modules/state.py`).
-   - **Inserção x atualização (upsert real)**: registro do legado que ainda não está no mapa de ids é **inserido**; registro que já está é **atualizado** em todas as colunas, pelo `id` do banco novo. Tabelas com chave natural usam `INSERT ... ON CONFLICT DO UPDATE` como rede de segurança contra duplicatas.
-   - **Replicação de exclusão**: todo id que estava no mapa de ids e não veio mais na extração foi apagado no legado e é apagado no banco novo, na ordem inversa de `LOAD_PRIORITY`. O RPA nunca apaga nada no banco legado.
-   - Toda a carga (exclusões + inserções + atualizações) ocorre em uma única transação: em caso de falha, **rollback** completo e o mapa de ids não é regravado; em caso de sucesso, **commit** e o mapa de ids é atualizado.
-5. **Registro da execução**
-   Cada execução grava uma linha na tabela `tb_log_rpa` do banco novo (`app/modules/execution_log.py`): início, fim, status, quantidade de registros inseridos/atualizados/excluídos e de erros de validação, e a mensagem de erro quando houver.
-Cada etapa gera logs estruturados (`app/modules/logs.py`), tanto em console quanto em arquivo (`logs/rpa_AAAA-MM-DD.log`).
- 
+
+1. **Extração** (`app/modules/extraction.py`): lê as tabelas permitidas em `ALLOWED_TABLES` com `pandas.read_sql` e retorna um dicionário de DataFrames.
+2. **Validação** (`app/modules/validation.py`): aplica as regras definidas em `RULES`, `UNIQUE_COLUMNS` e `FOREIGN_KEYS`, como idade mínima, valores permitidos, datas mensais, unicidade e integridade referencial. Registros válidos seguem para a transformação; os demais são reportados.
+3. **Transformação** (`app/modules/transformation.py`): normaliza dados conforme `TRANSFORMATIONS`, incluindo conversão para maiúsculas, substituição de valores e mapeamento de IDs do esquema novo.
+4. **Carga** (`app/modules/load.py`): processa tabelas conforme `LOAD_PRIORITY`, remapeia chaves estrangeiras e sincroniza inserções, atualizações e exclusões no destino.
+   - `state/id_map.json` mantém a relação entre IDs antigos e novos.
+   - Registros existentes são atualizados; novos registros são inseridos.
+   - IDs removidos da origem são excluídos do destino, em ordem inversa de dependência.
+   - A carga usa uma transação: sucesso confirma as alterações e atualiza o mapa de IDs; falha executa rollback.
+5. **Registro da execução** (`app/modules/execution_log.py`): grava em `tb_log_rpa` o início, o fim, o status, as quantidades processadas, os erros de validação e a mensagem de erro, quando houver.
+
+Cada etapa também gera logs estruturados no console e em `logs/rpa_AAAA-MM-DD.log`.
+
 ## Estrutura do projeto
- 
-```
+
+```text
 delta-rpa/
 ├── .github/
 │   └── workflows/
 │       ├── rpa.yml              # Execução agendada ou manual do pipeline
-│       └── trigger_actions.yml # Verificações organizacionais de Pull Request
-├── .gitignore
-├── AGENTS.md
+│       └── trigger_actions.yml  # Verificações organizacionais de Pull Request
 ├── app/
 │   ├── main.py                  # Orquestra o pipeline ETL
-│   ├── database/
-│   │   └── connections.py       # Conexões com os dois bancos
+│   ├── database/connections.py  # Conexões com os dois bancos
 │   └── modules/
-│       ├── extraction.py        # Extração dos dados do banco legado
+│       ├── extraction.py        # Extração do banco legado
 │       ├── validation.py        # Regras de validação e integridade
-│       ├── transformation.py    # Regras de transformação/normalização
-│       ├── load.py              # Carga no banco novo (upsert + exclusão + transação)
-│       ├── state.py             # Mapa de ids persistido entre execuções
-│       ├── execution_log.py     # Registro de cada execução em tb_log_rpa
-│       └── logs.py              # Configuração e helpers de logging
-├── tests/
-│   ├── test_validation.py
-│   ├── test_transformation.py
-│   ├── test_load.py
-│   └── test_state.py
-├── test/
-│   ├── init-legacy/             # Scripts SQL para popular o banco legado (testes)
-│   └── init-new/                # Scripts SQL para popular o banco novo (testes)
-├── state/                       # Mapa de ids (state/id_map.json) — estado local, não versionado
-├── logs/                        # Logs gerados em tempo de execução
+│       ├── transformation.py    # Transformação e normalização
+│       ├── load.py              # Carga no banco novo
+│       ├── state.py             # Mapa de IDs entre execuções
+│       ├── execution_log.py     # Registro em tb_log_rpa
+│       └── logs.py              # Configuração de logging
+├── tests/                       # Testes unitários
+├── test/                        # Scripts SQL para os bancos de teste
 ├── Dockerfile
-├── docker-compose.test.yml      # Sobe bancos de teste + executa o RPA
-├── DOCKER-HELP.md               # Guia do ambiente local de integração
-├── pytest.ini
+├── docker-compose.test.yml
+├── DOCKER-HELP.md               # Guia do ambiente de integração
 ├── requirements.txt
 ├── requirements-dev.txt
-├── .env.example
-├── LICENSE
-└── README.md
+└── .env.example
 ```
- 
+
 ## Pré-requisitos
- 
+
 - Python 3.12+
-- PostgreSQL (bancos legado e novo já provisionados) **ou** Docker + Docker Compose para o ambiente de testes
+- PostgreSQL para os bancos legado e novo, ou Docker e Docker Compose para o ambiente de teste
 - pip
+
 ## Configuração
- 
-Copie o arquivo de exemplo e preencha as variáveis de ambiente:
- 
+
+Copie o arquivo de exemplo e preencha as variáveis de conexão:
+
 ```bash
 cp .env.example .env
 ```
- 
-Variáveis disponíveis:
- 
+
 | Variável | Descrição |
 |---|---|
 | `FIRST_YEAR_DB_HOST` | Host do banco legado |
@@ -140,54 +105,39 @@ Variáveis disponíveis:
 | `SECOND_YEAR_DB_USER` | Usuário do banco novo |
 | `SECOND_YEAR_DB_PASSWORD` | Senha do banco novo |
 | `BATCH_SIZE` | Tamanho de lote utilizado pelo RPA |
- 
+
 ## Como executar
- 
-### Localmente
- 
+
+Crie um ambiente virtual, instale as dependências e inicie a migração:
+
 ```bash
-# criar e ativar o ambiente virtual
 python -m venv venv
-source venv/bin/activate      # Windows: venv\Scripts\activate
- 
-# instalar dependências
+source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
- 
-# configurar variáveis de ambiente
-cp .env.example .env
-# edite o .env com as credenciais dos bancos
- 
-# executar o RPA
 python app/main.py
 ```
- 
+
 ## Testes
- 
-O projeto possui testes unitários (`tests/`) e um ambiente Docker para integração, cujo uso está documentado no guia abaixo.
- 
-Testes unitários:
- 
+
+Os testes unitários ficam em `tests/`. Para instalá-los e executá-los:
+
 ```bash
 pip install -r requirements-dev.txt
 pytest
 ```
- 
-Consulte [DOCKER-HELP.md](DOCKER-HELP.md) para usar o ambiente Docker local.
+
+Para a integração com PostgreSQL em Docker, siga [`DOCKER-HELP.md`](DOCKER-HELP.md).
 
 ## Automação no GitHub
 
-- `.github/workflows/rpa.yml` está configurado para executar `python app/main.py` diariamente (cron do GitHub Actions) ou por acionamento manual, após instalar `requirements.txt`. As conexões vêm dos secrets `FIRST_YEAR_DB_*` e `SECOND_YEAR_DB_*`; `BATCH_SIZE` é definido no workflow. A execução pode alterar os dados do banco de destino, então configure apenas credenciais e ambientes autorizados.
-- `.github/workflows/trigger_actions.yml` chama as verificações organizacionais quando uma Pull Request é aberta ou editada. Ele valida a governança da PR; não executa os testes do RPA.
-
-A presença do workflow de execução não confirma que seus secrets estejam configurados nem que a execução remota mais recente tenha sido bem-sucedida.
+- `.github/workflows/rpa.yml` executa `python app/main.py` diariamente ou por acionamento manual. Configure os secrets `FIRST_YEAR_DB_*` e `SECOND_YEAR_DB_*`, além de `BATCH_SIZE`, para os bancos de destino autorizados.
+- `.github/workflows/trigger_actions.yml` chama as verificações organizacionais de Pull Request.
 
 ## Logs
- 
-Cada execução gera um arquivo de log diário em `logs/rpa_AAAA-MM-DD.log`, contendo as informações de cada etapa do pipeline (extração, validação, transformação, carga, exclusão) e o resultado final (commit ou rollback).
 
-Além do log em arquivo, cada execução grava uma linha na tabela `tb_log_rpa` do banco novo, com início, fim, status (`SUCCESS`/`ERROR`), quantidade de registros inseridos, atualizados e excluídos, quantidade de erros de validação e a mensagem de erro quando houver. O script de criação dessa tabela está em `test/init-new/01-schema.sql`.
+Cada execução gera um arquivo diário `logs/rpa_AAAA-MM-DD.log` com os registros das etapas e o resultado da transação. A tabela `tb_log_rpa` armazena status (`SUCCESS`/`ERROR`), quantidades inseridas, atualizadas e excluídas, erros de validação e mensagens de erro. O esquema dessa tabela está em `test/init-new/01-schema.sql`.
 
-O mapa de ids usado entre execuções fica em `state/id_map.json` (estado local, não versionado).
+O mapa de IDs entre execuções fica em `state/id_map.json`, mantido localmente.
 
 ## Referências relacionadas
 
